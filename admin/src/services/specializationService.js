@@ -59,13 +59,13 @@ export const getSpecializationsByHospitalId = async (hospitalId) => {
   }
 };
 
-export const addSpecializationToHospital = async (hospitalId, specializationId) => {
+export const addSpecializationToHospital = async (hospitalId, specializationIds) => {
   try {
-    const result = await postAuth(`/hospitals/${hospitalId}/specialization`, specializationId);
-    console.log(`Added specializationId ${specializationId} to hospitalId ${hospitalId}:`, result);
+    const result = await postAuth(`/hospitals/${hospitalId}/specialization`, specializationIds);
+    console.log(`Added specializationIds ${specializationIds} to hospitalId ${hospitalId}:`, result);
     return result;
   } catch (error) {
-    console.error(`Error adding specializationId ${specializationId} to hospitalId ${hospitalId}:`, error.message);
+    console.error(`Error adding specializationIds ${specializationIds} to hospitalId ${hospitalId}:`, error.message);
     throw error;
   }
 };

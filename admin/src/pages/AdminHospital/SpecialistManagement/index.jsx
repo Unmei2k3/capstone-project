@@ -31,7 +31,7 @@ const ManageSpecialist = () => {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const messageState = useSelector(state => state.message);
-
+  const [selectedSpecializations, setSelectedSpecializations] = useState([]);
   useEffect(() => {
     const fetchHospitalSpecialization = async () => {
       if (!user?.hospitals?.length) return;
@@ -83,7 +83,7 @@ const ManageSpecialist = () => {
   const handleDelete = async () => {
     try {
       if (!user?.hospitals?.length) throw new Error("Không xác định bệnh viện");
-        console.log("hospital id : " + user.hospitals[0].id, "deleting record id : " + deletingRecord.id);
+      console.log("hospital id : " + user.hospitals[0].id, "deleting record id : " + deletingRecord.id);
       await deleteSpecializationFromHospital(user.hospitals[0].id, deletingRecord.id);
       dispatch(setMessage({ type: 'success', content: `Xoá chuyên khoa ${deletingRecord.name} thành công!` }));
 
@@ -101,17 +101,16 @@ const ManageSpecialist = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      const specializationId = values.specializationId;
-      if (!specializationId) return;
+      const specializationIds = values.specializationId;
+      if (!specializationIds || specializationIds.length === 0) return;
 
       if (!user?.hospitals?.length) throw new Error("Không xác định bệnh viện");
 
-      await addSpecializationToHospital(user.hospitals[0].id, specializationId);
+      await addSpecializationToHospital(user.hospitals[0].id, specializationIds);
 
       dispatch(setMessage({ type: 'success', content: 'Thêm mới chuyên khoa thành công!' }));
       setModalVisible(false);
 
-      // Load lại danh sách hiện tại
       const result = await getSpecializationsByHospitalId(user.hospitals[0].id);
       setSpecialists(result || []);
     } catch (error) {
@@ -240,13 +239,28 @@ const ManageSpecialist = () => {
                 rules={[{ required: true, message: "Vui lòng chọn chuyên khoa" }]}
               >
                 <Select
-                  showSearch
+                  mode="multiple"
                   placeholder="Chọn chuyên khoa"
+                  showSearch
                   optionFilterProp="children"
+                  value={selectedSpecializations}
+                  onChange={(values) => {
+                    if (values.includes("all")) {
+                      const allIds = allSpecializations.map(spec => spec.id);
+                      setSelectedSpecializations(allIds);
+                      form.setFieldsValue({ specializationId: allIds });
+                    } else {
+                      setSelectedSpecializations(values);
+                      form.setFieldsValue({ specializationId: values });
+                    }
+                  }}
                   filterOption={(input, option) =>
                     option.children.toLowerCase().includes(input.toLowerCase())
                   }
                 >
+                  <Select.Option key="all" value="all">
+                    Tất cả
+                  </Select.Option>
                   {allSpecializations.map(spec => (
                     <Select.Option key={spec.id} value={spec.id}>
                       {spec.name}
