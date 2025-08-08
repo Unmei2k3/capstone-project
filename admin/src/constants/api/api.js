@@ -1,4 +1,4 @@
-export const API_DOMAIN = "https://localhost:8175";
+export const API_DOMAIN = "https://sep490-dabs-gsdjgbfbdgd8gkbb.eastasia-01.azurewebsites.net";
 export const PATH = "/api/v1";
 
 export const API_PROVINCES = "https://vietnamlabs.com/api/vietnamprovince";
