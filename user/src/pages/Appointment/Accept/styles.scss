@@ -1,0 +1,31 @@
+.responsive-container {
+  flex-direction: column;
+
+  @media screen and (min-width: 768px) {
+    flex-direction: row;
+  }
+}
+
+h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+p {
+  margin-bottom: 8px;
+  font-size: 15px;
+  color: #444;
+}
+
+.ant-menu-horizontal {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.ant-btn-primary {
+  background-color: #00cfff !important;
+  border-color: #00cfff !important;
+  font-weight: 600;
+}

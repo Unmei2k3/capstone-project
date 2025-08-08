@@ -1,0 +1,94 @@
+.hospital-detail-container {
+  padding: 24px;
+  background-color: #f0f2f5;
+  min-height: 100vh;
+}
+
+.hospital-header-card {
+  margin-bottom: 0;
+  
+  .ant-card-body {
+    padding: 16px 24px;
+  }
+}
+
+.hospital-overview-card {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  
+  .ant-card-body {
+    padding: 32px;
+  }
+  
+  h1 {
+    color: #1a3353;
+  }
+}
+
+.hospital-detail-container .ant-descriptions-item-label {
+  font-weight: 600;
+  background-color: #fafafa;
+}
+
+.hospital-detail-container .ant-descriptions-item-content {
+  background-color: #fff;
+}
+
+.hospital-detail-container .ant-statistic-title {
+  color: #8c8c8c;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.hospital-detail-container .ant-statistic-content {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.hospital-detail-container .ant-tabs-tab {
+  padding: 12px 24px;
+  font-size: 16px;
+}
+
+.hospital-detail-container .ant-tabs-tab-active {
+  font-weight: 600;
+}
+
+.hospital-detail-container .ant-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.hospital-detail-container .ant-tag {
+  border-radius: 16px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hospital-detail-container {
+    padding: 16px;
+  }
+  
+  .hospital-overview-card .ant-card-body {
+    padding: 20px;
+  }
+  
+  .hospital-detail-container h1 {
+    font-size: 24px !important;
+  }
+  
+  .hospital-detail-container .ant-statistic-content {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 576px) {
+  .hospital-detail-container .ant-descriptions {
+    font-size: 14px;
+  }
+  
+  .hospital-detail-container .ant-tabs-tab {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+}

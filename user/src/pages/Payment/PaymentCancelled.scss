@@ -1,0 +1,95 @@
+.payment-cancelled-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%);
+  padding: 24px;
+  
+  .payment-cancelled-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    
+    .ant-result {
+      background: white;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      
+      .ant-result-title {
+        color: #ff4d4f;
+        font-size: 28px;
+        font-weight: 600;
+      }
+      
+      .ant-result-subtitle {
+        font-size: 16px;
+        
+        .ant-typography {
+          margin-bottom: 8px;
+        }
+      }
+    }
+    
+    .cancellation-details-card {
+      .ant-card-head {
+        background: #fff2f0;
+        border-bottom: 1px solid #ffccc7;
+      }
+      
+      .ant-descriptions-item-label {
+        font-weight: 600;
+        color: #595959;
+      }
+      
+      .ant-descriptions-item-content {
+        color: #262626;
+      }
+    }
+    
+    .ant-list-item {
+      border-bottom: none !important;
+    }
+    
+    .ant-alert {
+      border-radius: 8px;
+    }
+    
+    .ant-btn-danger {
+      background: #ff4d4f;
+      border-color: #ff4d4f;
+      
+      &:hover {
+        background: #ff7875;
+        border-color: #ff7875;
+      }
+    }
+  }
+}
+
+// ✅ Mobile responsive
+@media (max-width: 768px) {
+  .payment-cancelled-container {
+    padding: 12px;
+    
+    .ant-result {
+      .ant-result-title {
+        font-size: 22px;
+      }
+      
+      .ant-result-subtitle {
+        font-size: 14px;
+      }
+    }
+    
+    .ant-descriptions {
+      .ant-descriptions-item-label,
+      .ant-descriptions-item-content {
+        font-size: 12px;
+      }
+    }
+    
+    .ant-list-item {
+      .ant-typography {
+        font-size: 11px;
+      }
+    }
+  }
+}

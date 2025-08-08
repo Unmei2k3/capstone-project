@@ -1,0 +1,161 @@
+.patient-records-container {
+    padding: 20px;
+
+    .breadcrumb-section {
+        margin-bottom: 20px;
+    }
+
+    .section-title {
+        color: #333;
+        margin-bottom: 20px;
+        font-size: 24px;
+        font-weight: 500;
+    }
+
+    .sidebar {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid #eee;
+
+            .add-record-btn {
+                width: 100%;
+                background: #00b5f1;
+                border-color: #00b5f1;
+
+                &:hover {
+                    background: #00a0d6;
+                    border-color: #00a0d6;
+                }
+            }
+        }
+
+        .sidebar-menu {
+            .menu-item {
+                padding: 16px;
+                font-size: 16px;
+                color: #333;
+                cursor: pointer;
+                border-bottom: 1px solid #eee;
+                transition: all 0.3s;
+                display: flex;
+                align-items: center;
+
+                &:hover {
+                    background-color: #f0f8ff;
+                    color: #00b5f1;
+                }
+
+                &.active {
+                    background-color: #e6f7ff;
+                    color: #00b5f1;
+                    font-weight: 500;
+                    border-left: 3px solid #00b5f1;
+                }
+
+                .anticon {
+                    margin-right: 10px;
+                }
+
+                &.notification {
+                    justify-content: space-between;
+
+                    .notification-badge {
+                        background-color: #ff4d4f;
+                    }
+                }
+            }
+        }
+    }
+
+    .patient-records {
+        .patient-card {
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+            .ant-card-body {
+                padding: 20px;
+            }
+
+            .patient-info {
+                .patient-header {
+                    border-bottom: 1px solid #eee;
+                    padding-bottom: 10px;
+                    margin-bottom: 16px;
+
+                    h3 {
+                        font-size: 18px;
+                        color: #333;
+                        margin-bottom: 0;
+
+                        .icon {
+                            color: #00b5f1;
+                            margin-right: 5px;
+                        }
+
+                        .highlight-text {
+                            color: #00b5f1;
+                            font-weight: 500;
+                        }
+                    }
+                }
+
+                .patient-details {
+                    margin-bottom: 20px;
+
+                    p {
+                        margin-bottom: 10px;
+                        font-size: 15px;
+
+                        .icon {
+                            color: #00b5f1;
+                            margin-right: 5px;
+                        }
+
+                        .detail-text {
+                            font-weight: 500;
+                            color: #333;
+                        }
+                    }
+                }
+
+                .action-buttons {
+                    display: flex;
+                    gap: 10px;
+                    margin-top: 20px;
+
+                    button {
+                        border-radius: 4px;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Responsive styles
+@media (max-width: 768px) {
+    .patient-records-container {
+        .sidebar {
+            margin-bottom: 20px;
+        }
+
+        .patient-records {
+            .patient-card {
+                .action-buttons {
+                    flex-direction: column;
+
+                    button {
+                        width: 100%;
+                        margin-bottom: 10px;
+                    }
+                }
+            }
+        }
+    }
+}

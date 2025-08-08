@@ -1,0 +1,59 @@
+.ant-carousel .slick-dots li button {
+  background: #d9d9d9;
+}
+
+.ant-carousel .slick-dots li.slick-active button {
+  background: #1890ff;
+}
+
+.ant-carousel .slick-dots-bottom {
+  bottom: -20px;
+}
+
+
+.ant-carousel .slick-dots li button {
+  background: #91d5ff;    
+  opacity: 0.7;
+  border: none;
+}
+
+.see-all-btn {
+  color: #19b5fe;
+  border: 1.5px solid #19b5fe;
+  border: none; 
+  background: #E8F4FD;
+  font-weight: 500;
+  font-size: 18px;
+  border-radius: 8px;
+  padding: 8px 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.see-all-btn:hover,
+.see-all-btn:focus {
+  border: 1.5px solid #1890ff; 
+  color: #1890ff;
+  border-color: #1890ff;
+}
+
+
+@media (max-width: 992px) {
+  .medical-facilities {
+    overflow-x: auto;
+    padding-bottom: 20px;
+
+    .facility-card {
+      min-width: 250px;
+      flex: 0 0 auto;
+    }
+  }
+}
+
+.slick-slide > div {
+  margin: 0 10px;
+}
+.slick-list {
+  margin: 0 -10px;
+}

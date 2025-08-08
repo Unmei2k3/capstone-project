@@ -1,0 +1,154 @@
+.department-management-container {
+    padding: 24px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.department-management-container h2 {
+    margin-bottom: 24px;
+    font-size: 24px;
+    font-weight: 600;
+    color: #1a3353;
+}
+
+.actions-row {
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.search-container {
+    max-width: 400px;
+}
+
+.department-table-container {
+    margin-top: 16px;
+}
+
+.department-table-container .ant-table-thead>tr>th {
+    background-color: #f7fafc;
+    font-weight: 600;
+}
+
+.department-table-container .ant-table-tbody>tr:hover>td {
+    background-color: #f0f5ff;
+}
+
+.department-status-tag {
+    min-width: 70px;
+    text-align: center;
+}
+
+.button-group {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 24px;
+    margin-bottom: 0;
+}
+
+/* Department form styles */
+.department-form-container .ant-form-item-label>label {
+    font-weight: 500;
+}
+
+/* Modal styles */
+.custom-modal .ant-modal-header {
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 16px;
+}
+
+.custom-modal .ant-modal-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.delete-warning {
+    display: flex;
+    align-items: flex-start;
+    padding: 16px;
+    background-color: #fff2f0;
+    border-radius: 4px;
+    border-left: 4px solid #ff4d4f;
+    margin-bottom: 16px;
+}
+
+.delete-warning-icon {
+    color: #ff4d4f;
+    font-size: 18px;
+    margin-right: 12px;
+    margin-top: 2px;
+}
+
+/* Tab styles */
+.department-tabs .ant-tabs-nav {
+    margin-bottom: 16px;
+}
+
+.department-tabs .ant-tabs-tab {
+    padding: 12px 16px;
+}
+
+.department-tabs .ant-tabs-tab-active {
+    font-weight: 500;
+}
+
+/* Statistics cards */
+.stats-card {
+    text-align: center;
+    padding: 16px;
+    background-color: #f0f2f5;
+    border-radius: 8px;
+    border: 1px solid #d9d9d9;
+    transition: all 0.3s ease;
+}
+
+.stats-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.stats-number {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.stats-label {
+    color: #8c8c8c;
+    font-size: 12px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .actions-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .search-container {
+        width: 100%;
+        max-width: none;
+    }
+
+    .department-management-container {
+        padding: 16px;
+    }
+
+    .custom-modal {
+        width: 95vw !important;
+        max-width: none;
+    }
+}
+
+@media (max-width: 576px) {
+    .department-table-container .ant-table {
+        font-size: 12px;
+    }
+
+    .stats-number {
+        font-size: 20px;
+    }
+}

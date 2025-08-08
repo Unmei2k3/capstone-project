@@ -1,0 +1,36 @@
+.payment-page-container {
+  padding: 24px;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+.payment-summary {
+  .summary-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+}
+
+.ant-form-item-label > label {
+  font-weight: 500;
+}
+
+.ant-input {
+  border-radius: 6px;
+}
+
+.ant-btn-primary {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .payment-page-container {
+    padding: 16px;
+  }
+}

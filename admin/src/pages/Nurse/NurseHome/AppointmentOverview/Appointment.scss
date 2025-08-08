@@ -1,0 +1,119 @@
+.appointment-overview-container {
+    padding: 24px;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+
+    h2 {
+        color: #1890ff;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .filters-row {
+        margin-bottom: 24px;
+        gap: 16px;
+
+        .ant-col {
+            margin-bottom: 16px;
+
+            @media (max-width: 768px) {
+                margin-bottom: 8px;
+            }
+        }
+    }
+
+    .appointment-tabs {
+        .ant-tabs-tab {
+            font-weight: 500;
+        }
+
+        .ant-badge {
+            .ant-badge-count {
+                font-size: 10px;
+                height: 18px;
+                min-width: 18px;
+                line-height: 18px;
+            }
+        }
+    }
+
+    .appointment-card {
+        margin-bottom: 16px;
+        border-radius: 8px;
+        border: 1px solid #f0f0f0;
+        transition: all 0.3s ease;
+
+        &:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: #1890ff;
+        }
+
+        .appointment-header {
+            h4 {
+                color: #1890ff;
+                font-weight: 600;
+            }
+        }
+
+        .appointment-details {
+            .ant-col {
+                margin-bottom: 4px;
+            }
+        }
+
+        .ant-tag {
+            font-size: 10px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+        }
+    }
+
+    .ant-list-empty-text {
+        padding: 40px 0;
+        color: #8c8c8c;
+    }
+
+    @media (max-width: 768px) {
+        padding: 16px;
+
+        .filters-row {
+            .ant-col {
+                margin-bottom: 8px;
+            }
+        }
+
+        .appointment-card {
+            .ant-col:last-child {
+                margin-top: 16px;
+                text-align: left !important;
+            }
+        }
+    }
+}
+
+// Statistics cards
+.ant-statistic {
+    .ant-statistic-title {
+        color: #8c8c8c;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .ant-statistic-content {
+        font-weight: bold;
+    }
+}
+
+// Modal styles
+.ant-modal {
+    .ant-descriptions-bordered .ant-descriptions-item-label {
+        background-color: #fafafa;
+        font-weight: 500;
+    }
+
+    .ant-descriptions-title {
+        color: #1890ff;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+}

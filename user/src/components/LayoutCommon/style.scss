@@ -1,0 +1,309 @@
+.nav-sticky-wrapper {
+    width: 100%;
+    background-color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 999;
+}
+
+.header {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+    justify-content: space-between;
+    background-color: #ddd;
+    width: 100%;
+    height: fit-content;
+    border-top: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    min-width: 0;
+    margin: auto;
+    position: relative;
+    z-index: 100;
+
+    &__logo {
+        padding: 0px 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+
+        img {
+            width: 140px;
+            height: auto;
+        }
+    }
+
+    &__content {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+
+        &__top {
+            opacity: 1;
+            transform: none;
+            height: 79px;
+            padding: 12px 0px 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            min-width: 0;
+
+            &__wrapper {
+                display: flex;
+                align-items: center;
+
+                &__chat-button {
+                    margin-right: 15px;
+
+                    .ant-btn {
+                        border-radius: 20px;
+                        background: linear-gradient(83.63deg, #00b5f1 33.34%, #00e0ff 113.91%);
+                        border-color: #00e0ff;
+                        height: 40px;
+                        display: flex;
+                        align-items: center;
+
+                        &:hover {
+                            opacity: 0.9;
+                        }
+
+                        .anticon {
+                            margin-right: 6px;
+                            font-size: 16px;
+                        }
+                    }
+                }
+
+                &__account {
+                    padding: 5px 10px;
+                    cursor: pointer;
+
+                    button {
+                        border-radius: 30px;
+                        border: 1px solid #00b5f1;
+                        min-width: 16px;
+                        height: 40px;
+                        width: 140px;
+                        overflow: hidden;
+                        display: flex;
+                        align-items: center;
+                        justify-content: flex-start;
+                        gap: 10px;
+                        font-weight: 500;
+                        font-size: 16px;
+                        line-height: 16px;
+                        color: #00b5f1;
+                        background: white;
+
+                        .ant-btn-primary:hover {
+                            background: linear-gradient(83.63deg, #00b5f1 33.34%, #00e0ff 113.91%);
+                            border-color: #00e0ff;
+                        }
+                    }
+                }
+            }
+
+            &__network {
+                display: flex;
+                align-items: center;
+
+                &__tiktok,
+                &__facebook,
+                &__youtube {
+                    text-align: center;
+                    padding: 0 12px;
+                    font-size: 14px;
+                }
+
+                &__tiktok {
+                    position: relative;
+
+                    &::after {
+                        content: '';
+                        position: absolute;
+                        top: 50%;
+                        right: 0;
+                        transform: translateY(-50%);
+                        width: 1px;
+                        height: 20%;
+                        background-color: #ddd;
+                    }
+                }
+
+                &__facebook {
+                    position: relative;
+
+                    &::after {
+                        content: '';
+                        position: absolute;
+                        top: 50%;
+                        right: 0;
+                        transform: translateY(-50%);
+                        width: 1px;
+                        height: 20%;
+                        background-color: #ddd;
+                    }
+                }
+
+                .header__content__top__network__tiktok:hover,
+                .header__content__top__network__facebook:hover,
+                .header__content__top__network__youtube:hover {
+                    color: #1890ff;
+                    cursor: pointer;
+                    transform: scale(1.1);
+                    transition: all 0.3s ease;
+                }
+            }
+
+
+        }
+
+        &__bottom {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+            width: 100%;
+
+
+            .ant-menu-horizontal {
+                width: 100% !important;
+                flex-wrap: wrap;
+                display: flex;
+                justify-content: center;
+                border-bottom: none;
+                background-color: transparent;
+                font-family: Roboto, serif;
+                min-width: 0;
+
+                .ant-menu-item,
+                .ant-menu-submenu-title {
+                    position: relative;
+                    padding: 12px 8px;
+                    font-family: Roboto, sans-serif;
+                    font-size: 16px;
+                    font-weight: 500;
+                    color: #003553;
+                    text-align: center;
+                    transition: all 0.21s ease-out;
+                    border-bottom: 2px solid transparent;
+
+                    a {
+                        color: inherit;
+                        text-decoration: none;
+                    }
+
+                    .anticon {
+                        margin-left: 8px;
+                        font-size: 12px;
+                    }
+                }
+
+                .ant-menu-submenu {
+                    .ant-menu-submenu-title {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 8px;
+
+                        &:hover {
+                            color: #006699;
+                            font-weight: bold;
+                        }
+                    }
+
+                    .ant-menu {
+                        background-color: #ffffff;
+                        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+                    }
+
+                    .ant-menu-item {
+                        padding: 10px 20px;
+
+                        &:hover {
+                            background-color: #f5f5f5;
+                        }
+                    }
+                }
+
+                .ant-menu-submenu-horizontal {
+                    display: flex;
+                    align-items: center;
+                }
+            }
+        }
+    }
+}
+
+.layout-default {
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex-grow: 1;
+    padding: 0px;
+    overflow: auto;
+}
+
+.footer {
+    text-align: center;
+    background-color: #23bef1;
+
+    .footer-content {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+
+        .footer-section {
+            flex: 1;
+            min-width: 250px;
+            margin-bottom: 20px;
+
+            h4 {
+                color: white;
+                margin-bottom: 16px;
+            }
+
+            .footer-social {
+                display: flex;
+                gap: 16px;
+                font-size: 24px;
+
+                a {
+                    color: white;
+
+                    &:hover {
+                        color: #1890ff;
+                    }
+                }
+            }
+        }
+    }
+}
+
+@media (max-width: 990px) {
+    .header__content__top {
+        flex-wrap: wrap;
+
+        &__network {
+            display: none;
+        }
+
+        &__wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            padding-right: 20px;
+
+            &__account {
+                width: 100%;
+                display: flex;
+                justify-content: flex-end;
+            }
+        }
+    }
+}

@@ -1,0 +1,23 @@
+/* styles.scss */
+.responsive-container {
+  display: flex;
+  flex-direction: row;
+  gap: 32px;
+  padding: 40px;
+}
+
+@media (max-width: 800px) {
+  .responsive-container {
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+  }
+}
+
+@media (max-width: 660px) {
+  .responsive-container {
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+  }
+}

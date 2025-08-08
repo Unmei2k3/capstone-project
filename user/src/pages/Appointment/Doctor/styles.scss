@@ -1,0 +1,54 @@
+.responsive-container {
+  @media (max-width: 768px) {
+    flex-direction: column !important;
+    padding: 16px !important;
+
+    > div {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+
+    .ant-table {
+      font-size: 14px;
+    }
+  }
+}
+
+.ant-table-thead > tr > th {
+  background-color: #f5fbff;
+  font-weight: 600;
+  color: #0077b6;
+  border-bottom: 1px solid #e6f4ff;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background-color: #f0faff;
+}
+
+.doctor-action-button {
+  background-color: #eaf6ff;
+  color: #00baff;
+  border: none;
+  border-radius: 6px;
+
+  &:hover {
+    background-color: #d0f0ff;
+    color: #009fdc;
+  }
+}
+.ant-modal-content {
+  border-radius: 12px;
+}
+
+.ant-modal-header {
+  background: linear-gradient(90deg, #00bfff 60%, #00eaff 100%);
+  color: #fff;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+
+  .ant-modal-title {
+    color: #fff;
+    font-weight: 600;
+  }
+}
+
