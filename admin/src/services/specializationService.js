@@ -70,6 +70,7 @@ export const addSpecializationToHospital = async (hospitalId, specializationIds)
   }
 };
 
+
 export const deleteSpecializationFromHospital = async (hospitalId, specializationId) => {
   try {
     const result = await deleteAuth(`/hospitals/${hospitalId}/specialization`, specializationId);

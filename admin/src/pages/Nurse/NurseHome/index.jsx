@@ -12,51 +12,29 @@ import {
 import {
   UserOutlined,
   NotificationOutlined,
+  HomeOutlined,
+  PhoneOutlined,
+  MailOutlined,
 } from "@ant-design/icons";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
 const NurseHome = () => {
   const { Title, Text } = Typography;
+  const userDefault = useSelector((state) => state.user.user || null);
+  const navigate = useNavigate();
+  if (!userDefault) {
+    return <div>Đang tải dữ liệu...</div>;
+  }
 
-  const fakeShift = {
-    time: "07:00 - 15:00",
-    room: "Phòng 12",
-    department: "Khoa Hồi sức tích cực",
-    status: "Đang làm",
-    patientCount: 4,
-  };
-
-  const fakePatients = [
-    { id: 1, name: "Nguyễn Văn A", age: 65, room: "12A", condition: "Ổn định" },
-    { id: 2, name: "Trần Thị B", age: 70, room: "12B", condition: "Cần theo dõi" },
-    { id: 3, name: "Lê Văn C", age: 58, room: "12C", condition: "Đang điều trị" },
-    { id: 4, name: "Phạm Thị D", age: 62, room: "12D", condition: "Ổn định" },
-  ];
-
-  const fakeTasks = [
-    { id: 1, title: "Đo dấu hiệu sinh tồn cho bệnh nhân 12A", status: "Chưa làm" },
-    { id: 2, title: "Phát thuốc cho bệnh nhân 12B", status: "Đang làm" },
-    { id: 3, title: "Ghi chép hồ sơ y tế bệnh nhân 12C", status: "Chưa làm" },
-    { id: 4, title: "Hỗ trợ bác sĩ khám bệnh", status: "Đã hoàn thành" },
-  ];
-
-  const fakeNotifications = [
-    {
-      id: 1,
-      content: "Đào tạo quy trình chăm sóc mới ngày 30/06/2025",
-      date: "28/06/2025",
-    },
-    {
-      id: 2,
-      content: "Lịch họp khoa ngày 01/07/2025",
-      date: "29/06/2025",
-    },
-  ];
-
-  const statusColor = {
-    "Chưa làm": "red",
-    "Đang làm": "orange",
-    "Đã hoàn thành": "green",
-  };
+  const fullname = userDefault.fullname || userDefault.userName || "Chưa có tên";
+  const job = userDefault.job || "Chưa xác định";
+  const hospitals = userDefault.hospitals || [];
+  const email = userDefault.email || "";
+  const phoneNumber = userDefault.phoneNumber || "";
+  const address = userDefault.streetAddress || "";
+  const province = userDefault.province || "";
+  const ward = userDefault.ward || "";
 
   return (
     <div
@@ -68,12 +46,13 @@ const NurseHome = () => {
       }}
     >
       <Title level={2} style={{ color: "#52c41a" }}>
-        Chào điều dưỡng Nguyễn Thị H
+        Chào {fullname}
       </Title>
 
       <Row gutter={[24, 24]}>
-        {/* Left side */}
+
         <Col span={16}>
+
           <Card
             title="Ca trực hôm nay"
             style={{
@@ -82,17 +61,7 @@ const NurseHome = () => {
               boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
             }}
           >
-            <Text strong>Thời gian: </Text> {fakeShift.time} <br />
-            <Text strong>Phòng: </Text> {fakeShift.room} <br />
-            <Text strong>Khoa: </Text> {fakeShift.department} <br />
-            <Text strong>Số bệnh nhân cần chăm sóc: </Text>{" "}
-            {fakeShift.patientCount} <br />
-            <Tag
-              color={fakeShift.status === "Đang làm" ? "green" : "blue"}
-              style={{ marginTop: 8 }}
-            >
-              {fakeShift.status}
-            </Tag>
+            <Text>Chưa có dữ liệu ca trực.</Text>
           </Card>
 
           <Card
@@ -104,27 +73,7 @@ const NurseHome = () => {
               boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
             }}
           >
-            <List
-              itemLayout="horizontal"
-              dataSource={fakePatients}
-              renderItem={(patient) => (
-                <List.Item
-                  actions={[
-                    <Button type="link" key="detail">
-                      Xem chi tiết
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={<Avatar icon={<UserOutlined />} />}
-                    title={
-                      <Text strong>{patient.name} (Tuổi: {patient.age})</Text>
-                    }
-                    description={`Phòng: ${patient.room} | Tình trạng: ${patient.condition}`}
-                  />
-                </List.Item>
-              )}
-            />
+            <Text>Chưa có dữ liệu bệnh nhân.</Text>
           </Card>
 
           <Card
@@ -136,20 +85,7 @@ const NurseHome = () => {
               boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
             }}
           >
-            <List
-              dataSource={fakeTasks}
-              renderItem={(task) => (
-                <List.Item
-                  actions={[
-                    <Tag color={statusColor[task.status]} key={task.id}>
-                      {task.status}
-                    </Tag>,
-                  ]}
-                >
-                  {task.title}
-                </List.Item>
-              )}
-            />
+            <Text>Chưa có dữ liệu nhiệm vụ.</Text>
           </Card>
 
           <Card
@@ -161,22 +97,10 @@ const NurseHome = () => {
               boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
             }}
           >
-            <List
-              dataSource={fakeNotifications}
-              renderItem={(item) => (
-                <List.Item>
-                  <NotificationOutlined
-                    style={{ marginRight: 8, color: "#1890ff" }}
-                  />
-                  <Text>{item.content}</Text>{" "}
-                  <Text type="secondary">({item.date})</Text>
-                </List.Item>
-              )}
-            />
+            <Text>Chưa có thông báo mới.</Text>
           </Card>
         </Col>
 
-        {/* Right side */}
         <Col span={8}>
           <Card
             title="Thông tin cá nhân"
@@ -187,21 +111,43 @@ const NurseHome = () => {
               backgroundColor: "#ffffff",
             }}
           >
-            <Avatar size={100} icon={<UserOutlined />} />
+            <Avatar
+              size={100}
+              icon={<UserOutlined />}
+              src={userDefault.avatarUrl || null}
+              alt={fullname}
+            />
             <Title level={4} style={{ marginTop: 16 }}>
-              Nguyễn Thị H
+              {fullname}
             </Title>
-            <Text>Chức vụ: Điều dưỡng</Text>
+            <Text>
+              <strong>Chức vụ: </strong> Y Tá
+            </Text>
             <br />
-            <Text>Bộ phận: Khoa Hồi sức tích cực</Text>
+            <Text>
+              <strong>Bệnh viện: </strong>{" "}
+              {hospitals.length > 0 ? hospitals[0].name : "Chưa có"}
+            </Text>
             <br />
-            <Button type="primary" style={{ marginTop: 16 }}>
+            <Text>
+              <HomeOutlined /> {`${address}, ${ward}, ${province}`}
+            </Text>
+            <br />
+            <Text>
+              <PhoneOutlined /> {phoneNumber}
+            </Text>
+            <br />
+            <Text>
+              <MailOutlined /> {email}
+            </Text>
+            <br />
+            <Button type="primary" style={{ marginTop: 16 }} onClick={() => navigate("nurse-profile")}>
               Cập nhật hồ sơ
             </Button>
           </Card>
         </Col>
       </Row>
-    </div>
+    </div >
   );
 };
 

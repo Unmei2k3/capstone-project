@@ -3,10 +3,18 @@ import { Card, Row, Col, Button, List, Avatar, Typography, Tag } from "antd";
 import { UserOutlined, NotificationOutlined, CheckCircleOutlined, ClockCircleOutlined, CommentOutlined, StarOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+
 const HospitalStaffHome = () => {
   const { Title, Text } = Typography;
   const navigate = useNavigate();
   const userDefault = useSelector((state) => state.user.user || null);
+
+  // Nếu chưa có user, có thể trả về null hoặc UI loading (tuỳ bạn)
+  if (!userDefault) {
+    return <div>Đang tải dữ liệu người dùng...</div>;
+  }
+
+  // Dữ liệu giả lập nhiệm vụ và thông báo
   const fakeTasks = [
     { id: 1, title: "Chuẩn bị phòng khám số 10", status: "Đang xử lý" },
     { id: 2, title: "Kiểm tra trang thiết bị phòng mổ", status: "Chưa xử lý" },
@@ -24,6 +32,8 @@ const HospitalStaffHome = () => {
     "Đã hoàn thành": "green",
   };
 
+  // Lấy thông tin bệnh viện (lấy bệnh viện đầu tiên)
+  const hospital = userDefault.hospitals && userDefault.hospitals.length > 0 ? userDefault.hospitals[0] : null;
 
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", padding: 24 }}>
@@ -100,13 +110,21 @@ const HospitalStaffHome = () => {
 
         <Col span={8}>
           <Card title="Thông tin cá nhân" style={{ textAlign: "center" }}>
-            <Avatar size={100} icon={<UserOutlined />} />
+            <Avatar
+              size={100}
+              icon={!userDefault.avatarUrl ? <UserOutlined /> : null}
+              src={userDefault.avatarUrl || null}
+            />
             <Title level={4} style={{ marginTop: 16 }}>
-              Nguyễn Thị B
+              {userDefault.fullname || "Tên nhân viên"}
             </Title>
-            <Text>Chức vụ: Nhân viên y tế</Text>
+            <Text>Chức vụ: {userDefault.role?.name || "Nhân viên y tế"}</Text>
             <br />
-            <Text>Bộ phận: Khoa Khám bệnh</Text>
+            <Text>
+              Bộ phận: {hospital ? hospital.name : "Chưa cập nhật bộ phận"}
+            </Text>
+            <br />
+            <Text>Địa chỉ: {userDefault.streetAddress || "Chưa cập nhật địa chỉ"}</Text>
             <br />
             <Button type="primary" style={{ marginTop: 16 }}>
               Cập nhật hồ sơ

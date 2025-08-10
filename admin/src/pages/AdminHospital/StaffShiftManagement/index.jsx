@@ -37,6 +37,8 @@ import { createStaffSchedules, deleteStaffSchedule, getScheduleByStaffNurseId, u
 import { clearMessage, setMessage } from "../../../redux/slices/messageSlice";
 import utc from "dayjs/plugin/utc";
 import viLocale from "@fullcalendar/core/locales/vi";
+import { getHospitalWorkDate } from "../../../services/hospitalService";
+
 dayjs.extend(utc);
 const { Option, OptGroup } = Select;
 const { RangePicker } = DatePicker;
@@ -147,7 +149,45 @@ const StaffShiftManagement = () => {
   const messageState = useSelector((state) => state.message)
   const calendarRef = useRef();
   const shiftSelectMode = editingShift ? undefined : "multiple";
+  const [workingDates, setWorkingDates] = useState([]);
 
+  useEffect(() => {
+    const fetchHospitalWorkDates = async () => {
+      if (!user?.hospitals?.[0]?.id) return;
+      try {
+        const response = await getHospitalWorkDate(user.hospitals[0].id);
+        console.log("response log is :  " + JSON.stringify(response));
+        if (response?.workingDates) {
+          setWorkingDates(response.workingDates);
+        }
+      } catch (error) {
+        console.error("Lỗi lấy lịch làm việc bệnh viện:", error);
+        setWorkingDates([]);
+      }
+    };
+    fetchHospitalWorkDates();
+  }, [user?.hospitals]);
+
+  const getShiftTimesByDay = (dayOfWeek) => {
+    const dayInfo = workingDates.find((d) => d.dayOfWeek === dayOfWeek);
+
+    if (
+      !dayInfo ||
+      dayInfo.isClosed ||
+      dayInfo.startTime === "00:00:00" ||
+      dayInfo.endTime === "00:00:00"
+    ) {
+      return {
+        morning: { startTime: "00:00:00", endTime: "00:00:00" },
+        afternoon: { startTime: "00:00:00", endTime: "00:00:00" },
+      };
+    }
+
+    return {
+      morning: { startTime: dayInfo.startTime, endTime: "12:00:00" },
+      afternoon: { startTime: "12:00:00", endTime: dayInfo.endTime },
+    };
+  };
 
   useEffect(() => {
     if (messageState) {
@@ -349,21 +389,68 @@ const StaffShiftManagement = () => {
 
 
   const onFinish = async (values) => {
-    const { shift } = values;
-    const shiftsPayload = shift.map((sh) => ({
-      startTime: shiftTimesMap[sh].startTime,
-      endTime: shiftTimesMap[sh].endTime,
-    }));
+    const { shift, workDate } = values;
+    console.log("shift is " + shift + "work date is " + workDate);
+    let shiftArray = [];
+
+    if (Array.isArray(shift)) {
+      shiftArray = shift;
+    } else if (typeof shift === "string" && shift) {
+      shiftArray = [shift];
+    } else {
+      shiftArray = [];
+    }
+    if (shiftArray.length === 0 || !workDate) {
+      dispatch(
+        setMessage({
+          type: "error",
+          content: "Vui lòng chọn ngày và ca làm việc",
+        })
+      );
+      return;
+    }
+    console.log("shift Array : " + JSON.stringify(shiftArray));
+    const dayOfWeek = dayjs(workDate).day();
+    const shiftTimesMap = getShiftTimesByDay(dayOfWeek);
+
+    console.log("day of week: " + JSON.stringify(dayOfWeek) + "shift time map : " + JSON.stringify(shiftTimesMap));
+    const validShifts = shiftArray.every(sh => {
+      const times = shiftTimesMap[sh];
+      console.log("times is : " + JSON.stringify(times));
+      return times && times.startTime !== "00:00:00" && times.endTime !== "00:00:00";
+    });
+    console.log("valid shifts is : " + validShifts);
+    if (!validShifts) {
+      dispatch(setMessage({
+        type: 'error',
+        content: 'Ngày làm việc này không hỗ trợ ca làm đã chọn vì bệnh viện đóng cửa hoặc thời gian không hợp lệ.'
+      }));
+      return;
+    }
+
+    const shiftsPayload = shiftArray.map((sh) => {
+      const times = shiftTimesMap[sh];
+      // if (!times || !times.startTime || !times.endTime) {
+      //   throw new Error(`Ca làm '${sh}' không có thời gian hợp lệ trong ngày đã chọn`);
+      // }
+      return {
+        startTime: times.startTime,
+        endTime: times.endTime,
+      };
+    });
 
     try {
-
       if (editingShift) {
+        const shiftKey = shiftArray[0];
+        const times = shiftTimesMap[shiftKey];
+
         const updatePayload = {
           id: editingShift.id,
           doctorScheduleId: editingShift.doctorScheduleId || null,
           staffId: values.staffId,
-          workDate: values.workDate.format('YYYY-MM-DD'),
-          timeShift: shiftsPayload[0].startTime < "12:00:00" ? 1 : 2,
+          workDate: workDate ? workDate.format("YYYY-MM-DD") : null,
+          startTime: times.startTime,
+          endTime: times.endTime,
           isAvailable: true,
           reasonOfUnavailability: "",
         };
@@ -374,10 +461,10 @@ const StaffShiftManagement = () => {
         const payload = {
           staffIds: [values.staffId],
           hospitalId: user.hospitals[0]?.id,
-          daysOfWeek: [dayjs(values.workDate).day()],
+          daysOfWeek: [dayOfWeek],
           shifts: shiftsPayload,
-          startDate: values.workDate.format("YYYY-MM-DD"),
-          endDate: values.workDate.format("YYYY-MM-DD"),
+          startDate: dayjs(workDate).format("YYYY-MM-DD"),
+          endDate: dayjs(workDate).format("YYYY-MM-DD"),
           isAvailable: false,
           reasonOfUnavailability: "",
         };
@@ -393,12 +480,6 @@ const StaffShiftManagement = () => {
     }
   };
 
-
-
-  const shiftTimesMap = {
-    morning: { startTime: "07:30:00", endTime: "11:30:00" },
-    afternoon: { startTime: "12:30:00", endTime: "16:30:00" }
-  };
 
   const renderEventContent = (eventInfo) => {
     const { title, extendedProps } = eventInfo.event;
@@ -418,7 +499,8 @@ const StaffShiftManagement = () => {
           overflow: "hidden",
           WebkitBoxOrient: "vertical",
           display: "-webkit-box",
-           WebkitLineClamp: 6,
+          WebkitLineClamp: 6,
+          height: "100%"
         }}
       >
         {(department) && (
@@ -480,6 +562,7 @@ const StaffShiftManagement = () => {
   };
   const onFinishBulk = async (values) => {
     const { staffIds, weekdays, shift, dateRange } = values;
+
     if (!staffIds || staffIds.length === 0) {
       message.error("Vui lòng chọn Nhân viên");
       return;
@@ -497,36 +580,55 @@ const StaffShiftManagement = () => {
       return;
     }
 
-    const shiftsPayload = shift.map((sh) => ({
-      startTime: shiftTimesMap[sh].startTime,
-      endTime: shiftTimesMap[sh].endTime,
-    }));
-
     try {
-      for (const userId of staffIds) {
-        const payload = {
-          staffIds: [userId],
-          hospitalId: user.hospitals[0]?.id,
-          daysOfWeek: weekdays,
-          shifts: shiftsPayload,
-          startDate: dateRange[0].format("YYYY-MM-DD"),
-          endDate: dateRange[1].format("YYYY-MM-DD"),
-          isAvailable: true,
-          reasonOfUnavailability: "",
-        };
+      for (const dayOfWeek of weekdays) {
+        const shiftTimesMap = getShiftTimesByDay(dayOfWeek);
 
-        console.log("Bulk create payload:", payload);
-        await createStaffSchedules(payload);
+        const validShifts = shift.every((sh) => {
+          const times = shiftTimesMap[sh];
+          return times && times.startTime && times.endTime && times.startTime !== "00:00:00" && times.endTime !== "00:00:00";
+        });
+
+        if (!validShifts) {
+          dispatch(setMessage({
+            type: "error",
+            content: `Ngày ${weekdayOptions.find(d => d.value === dayOfWeek)?.label || dayOfWeek} không hỗ trợ ca làm đã chọn do bệnh viện đóng cửa hoặc thời gian không hợp lệ.`
+          }));
+          return;
+        }
+
+        const shiftsPayload = shift.map((sh) => ({
+          startTime: shiftTimesMap[sh].startTime,
+          endTime: shiftTimesMap[sh].endTime,
+        }));
+
+        for (const userId of staffIds) {
+          const payload = {
+            staffIds: [userId],
+            hospitalId: user.hospitals[0]?.id,
+            daysOfWeek: [dayOfWeek],
+            shifts: shiftsPayload,
+            startDate: dateRange[0].format("YYYY-MM-DD"),
+            endDate: dateRange[1].format("YYYY-MM-DD"),
+            isAvailable: true,
+            reasonOfUnavailability: "",
+          };
+
+          console.log("Bulk create payload:", JSON.stringify(payload));
+          await createStaffSchedules(payload);
+        }
       }
 
-      dispatch(setMessage({ type: 'success', content: 'Tạo ca làm việc thành công!' }));
+      dispatch(setMessage({ type: "success", content: "Tạo ca làm việc thành công!" }));
       bulkForm.resetFields();
-      setFlag(prev => !prev);
+      setFlag((prev) => !prev);
+
     } catch (error) {
       console.error("Lỗi tạo lịch mẫu:", error);
-      dispatch(setMessage({ type: 'error', content: 'Xảy ra lỗi khi tạo ca làm việc!' }));
+      dispatch(setMessage({ type: "error", content: "Xảy ra lỗi khi tạo ca làm việc!" }));
     }
   };
+
 
   const Legend = () => (
     <Row justify="center" gutter={16} style={{ marginBottom: 20 }}>
@@ -853,6 +955,40 @@ const StaffShiftManagement = () => {
                         <Option value="afternoon">Chiều</Option>
                       </Select>
                     </Form.Item>
+
+                  </Col>
+                  <Col span={12}>
+                  
+                    {form.getFieldValue("workDate") ? (() => {
+                      const dayOfWeek = dayjs(form.getFieldValue("workDate")).day();
+                      const times = getShiftTimesByDay(dayOfWeek);
+                      return (
+                        <div style={{ fontSize: 14, color: "#555", userSelect: "none", marginTop: 24 }}>
+                          {times.morning?.startTime && times.morning?.endTime ? (
+                            <div>
+                              <b>Ca sáng:</b> {times.morning.startTime} - {times.morning.endTime}
+                            </div>
+                          ) : (
+                            <div>
+                              <b>Ca sáng:</b> Không có giờ làm việc
+                            </div>
+                          )}
+                          {times.afternoon?.startTime && times.afternoon?.endTime ? (
+                            <div>
+                              <b>Ca chiều:</b> {times.afternoon.startTime} - {times.afternoon.endTime}
+                            </div>
+                          ) : (
+                            <div>
+                              <b>Ca chiều:</b> Không có giờ làm việc
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })() : (
+                      <div style={{ fontSize: 14, color: "#999", userSelect: "none", marginTop: 8 }}>
+                        Chọn ngày để xem giờ làm việc ca sáng/chiều
+                      </div>
+                    )}
                   </Col>
                 </Row>
               </Form>

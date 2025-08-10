@@ -14,7 +14,7 @@ const DoctorLeaveRequestForm = ({ visible, onCancel, onSuccess }) => {
   const user = useSelector((state) => state.user.user);
   const [startDateValue, setStartDateValue] = useState(null);
   const [endDateValue, setEndDateValue] = useState(null);
-  //console.log("User data:", user);
+  console.log("User data:", user);
   const disabledStartDate = (current) => {
     if (!current) return false;
     return current <= dayjs().startOf('day') || (endDateValue && current > endDateValue);

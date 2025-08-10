@@ -64,7 +64,28 @@ function DoctorProfile() {
     }, [messageState, dispatch]);
 
     const { Option } = Select;
-
+ useEffect(() => {
+    if (userDefault && provinces.length > 0) {
+      form.setFieldsValue({
+        fullname: userDefault.fullname ?? undefined,
+        phoneNumber: userDefault.phoneNumber ?? undefined,
+        email: userDefault.email ?? undefined,
+        gender:
+          userDefault.gender !== undefined ? String(userDefault.gender) : undefined,
+        dob: userDefault.dob ? dayjs(userDefault.dob, "YYYY-MM-DD") : null,
+        province: userDefault.province ?? undefined,
+        ward: userDefault.ward ?? undefined,
+        streetAddress: userDefault.streetAddress ?? undefined,
+        cccd: userDefault.cccd ?? undefined,
+        function:
+          userDefault.role?.name === "Doctor"
+            ? "Bác sĩ"
+            : userDefault.role?.name ?? undefined,
+        hospitalName: userDefault.hospitals?.[0]?.name ?? undefined,
+      });
+      setSelectedProvince(userDefault.province ?? null);
+    }
+  }, [userDefault, provinces, form]);
     const getMappedData = (formValues, reduxUser) => {
         const mapped = {};
         const fieldMap = {
@@ -175,20 +196,7 @@ function DoctorProfile() {
                             layout="vertical"
                             onFinish={handleFinish}
                             form={form}
-                            initialValues={{
-                                fullname: userDefault?.fullname?.trim() || "Nguyễn Văn A",
-                                phoneNumber: userDefault?.phoneNumber || "0969808505",
-                                email: userDefault?.email || "lapthd2k3@gmail.com",
-                                gender: userDefault?.gender !== undefined ? userDefault.gender.toString() : "true",
-                                dob: userDefault?.dob ? dayjs(userDefault.dob, "YYYY-MM-DD") : null,
-                                province: userDefault?.province || null,
-                                ward: userDefault?.ward || null,
-                                streetAddress: userDefault?.streetAddress || "",
-                                cccd: userDefault?.cccd || "",
-                                function: "Thạc sĩ",
-                                specialty: "Bác sĩ gia đình",
-                                hospitalName: "Bệnh viện Hà Đông"
-                            }}
+               
                         >
                             <Row gutter={[24, 16]}>
                                 <Col xs={24} md={12}>
@@ -231,7 +239,7 @@ function DoctorProfile() {
                                             { type: "email", message: "Email không hợp lệ!" },
                                         ]}
                                     >
-                                        <Input prefix={<MailOutlined />} size="large" />
+                                        <Input prefix={<MailOutlined />} size="large" disabled/>
                                     </Form.Item>
                                 </Col>
                             </Row>
@@ -327,7 +335,7 @@ function DoctorProfile() {
                                         />
                                     </Form.Item>
                                 </Col>
-                                <Col xs={24} md={12}>
+                                {/* <Col xs={24} md={12}>
                                     <Form.Item name="specialty" label="Chuyên khoa">
                                         <Input
                                             readOnly
@@ -338,7 +346,7 @@ function DoctorProfile() {
                                             }}
                                         />
                                     </Form.Item>
-                                </Col>
+                                </Col> */}
                             </Row>
 
                             <Form.Item name="hospitalName" label="Bệnh viện">

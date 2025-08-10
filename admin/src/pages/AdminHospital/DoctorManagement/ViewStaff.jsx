@@ -33,39 +33,75 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getDoctorDetail } from '../../../services/doctorService';
+import { getUserById } from '../../../services/userService';
 
 const { Title, Text } = Typography;
 
-const ViewStaff = ({ visible, onCancel, staff }) => {
+const ViewStaff = ({ visible,
+    onCancel,
+    staff,
+    apiSource,
+    detailedData,
+    staffType }) => {
     const [loading, setLoading] = useState(false);
-    const [doctorDetailData, setDoctorDetailData] = useState(null);
+    const [staffDetailData, setStaffDetailData] = useState(null);
     const [error, setError] = useState(null);
-
+    const currentStaffType = staffType || staff?.type || 'unknown';
     // Reset state when modal opens/closes
     useEffect(() => {
         if (visible && staff?.id) {
-            fetchDoctorDetail(staff.id);
+            fetchStaffDetail(staff.id);
         } else if (!visible) {
             // Reset state when modal closes
-            setDoctorDetailData(null);
+            setStaffDetailData(null);
             setError(null);
             setLoading(false);
         }
     }, [visible, staff?.id]);
 
-    const fetchDoctorDetail = async (doctorId) => {
+    const fetchStaffDetail = async (staffId) => {
         setLoading(true);
         setError(null);
-        
+
         try {
-            console.log('🔍 Fetching doctor detail for ID:', doctorId);
-            const detailData = await getDoctorDetail(doctorId);
-            console.log('📥 Received doctor detail:', detailData);
-            
-            setDoctorDetailData(detailData);
+            console.log('🔍 Fetching staff detail for ID:', staffId, 'Type:', currentStaffType);
+
+            let detailData;
+
+            // Use different API based on staff type
+            if (currentStaffType === 'doctor') {
+                detailData = await getDoctorDetail(staffId);
+                console.log('📥 Received doctor detail:', detailData);
+            } else if (currentStaffType === 'nurse') {
+                const response = await getUserById(staffId);
+                console.log('📥 Received nurse detail response:', response);
+
+                // For nurses, we need to structure the data similar to doctor response
+                if (response) {
+                    detailData = {
+                        id: response.id,
+                        type: 'nurse',
+                        status: response.status || 'active',
+                        user: response,
+                        specializations: [], // Nurses typically don't have specializations
+                        hospitalAffiliations: response.hospitalAffiliations || [],
+                        experience: response.experience || null,
+                        practicingFrom: response.practicingFrom || null,
+                        description: response.description || null,
+                        rating: response.rating || null,
+                        totalPatients: response.totalPatients || 0,
+                        schedule: response.schedule || null
+                    };
+                }
+            } else {
+                throw new Error(`Không hỗ trợ loại nhân viên: ${currentStaffType}`);
+            }
+
+            setStaffDetailData(detailData);
         } catch (error) {
-            console.error('❌ Error fetching doctor detail:', error);
-            setError('Không thể tải thông tin chi tiết bác sĩ. Vui lòng thử lại.');
+            console.error('❌ Error fetching staff detail:', error);
+            const staffTypeText = currentStaffType === 'doctor' ? 'bác sĩ' : 'y tá';
+            setError(`Không thể tải thông tin chi tiết ${staffTypeText}. Vui lòng thử lại.`);
         } finally {
             setLoading(false);
         }
@@ -81,30 +117,51 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
         return (
             <Modal
                 title={
-                    <Space>
-                        <UserOutlined />
-                        <span>Thông tin bác sĩ</span>
-                    </Space>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        {currentStaffType === 'doctor' ? (
+                            <>
+                                <MedicineBoxOutlined style={{ color: '#1890ff', marginRight: 8 }} />
+                                <span style={{ color: '#1890ff' }}>Thông tin bác sĩ</span>
+                            </>
+                        ) : (
+                            <>
+                                <HeartOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                                <span style={{ color: '#52c41a' }}>Thông tin y tá</span>
+                            </>
+                        )}
+                    </div>
                 }
                 open={visible}
                 onCancel={onCancel}
                 footer={null}
-                width={1000}
-                destroyOnClose
-                style={{ top: 20 }}
+                width={900}
             >
-                <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    alignItems: 'center', 
-                    padding: '80px 0' 
+                {apiSource && (
+                    <div style={{
+                        background: '#f0f0f0',
+                        padding: 8,
+                        borderRadius: 4,
+                        marginBottom: 16,
+                        fontSize: '12px',
+                        color: '#666'
+                    }}>
+                        <strong>Data Source:</strong> {apiSource} |
+                        <strong> Staff Type:</strong> {currentStaffType} |
+                        <strong> Has Detailed Data:</strong> {detailedData ? 'Yes' : 'No'}
+                    </div>
+                )}
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: '80px 0'
                 }}>
-                    <Spin 
-                        size="large" 
+                    <Spin
+                        size="large"
                         indicator={<LoadingOutlined style={{ fontSize: 48 }} />}
                     />
                     <div style={{ marginLeft: 16, fontSize: 16 }}>
-                        Đang tải thông tin bác sĩ...
+                        {currentStaffType === 'doctor' ? 'Đang tải thông tin bác sĩ...' : 'Đang tải thông tin y tá...'}
                     </div>
                 </div>
             </Modal>
@@ -118,7 +175,7 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                 title={
                     <Space>
                         <UserOutlined />
-                        <span>Thông tin bác sĩ</span>
+                        <span>Thông tin {currentStaffType === 'doctor' ? 'bác sĩ' : 'y tá'}</span>
                     </Space>
                 }
                 open={visible}
@@ -134,8 +191,8 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                     type="error"
                     showIcon
                     action={
-                        <button 
-                            onClick={() => fetchDoctorDetail(staff.id)}
+                        <button
+                            onClick={() => fetchStaffDetail(staff.id)}
                             style={{
                                 background: '#1890ff',
                                 color: 'white',
@@ -154,13 +211,13 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
     }
 
     // No data state
-    if (!doctorDetailData) {
+    if (!staffDetailData) {
         return (
             <Modal
                 title={
                     <Space>
                         <UserOutlined />
-                        <span>Thông tin bác sĩ</span>
+                        <span>Thông tin {currentStaffType === 'doctor' ? 'bác sĩ' : 'y tá'}</span>
                     </Space>
                 }
                 open={visible}
@@ -170,7 +227,7 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                 destroyOnClose
                 style={{ top: 20 }}
             >
-                <Empty 
+                <Empty
                     description="Không có dữ liệu để hiển thị"
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                 />
@@ -179,13 +236,13 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
     }
 
     // Extract data from API response
-    const doctorData = doctorDetailData;
-    const user = doctorData.user || {};
-    const hospitalAffiliations = doctorData.hospitalAffiliations || [];
-    const specializations = doctorData.specializations || [];
+    const staffData = staffDetailData;
+    const user = staffData.user || {};
+    const hospitalAffiliations = staffData.hospitalAffiliations || [];
+    const specializations = staffData.specializations || [];
 
     console.log('📋 Using API data:');
-    console.log('- doctorData:', doctorData);
+    console.log('- staffData:', staffData);
     console.log('- user:', user);
     console.log('- hospitalAffiliations:', hospitalAffiliations);
     console.log('- specializations:', specializations);
@@ -232,13 +289,13 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
 
     const getPracticingDuration = (practicingFrom) => {
         if (!practicingFrom) return 'Chưa cập nhật';
-        
+
         try {
             const startDate = dayjs(practicingFrom);
             const now = dayjs();
             const years = now.diff(startDate, 'year');
             const months = now.diff(startDate, 'month') % 12;
-            
+
             return `${years} năm ${months} tháng`;
         } catch (error) {
             console.error("Error calculating practicing duration:", error);
@@ -255,9 +312,9 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                         <BankOutlined style={{ marginRight: 8 }} />
                         Liên kết bệnh viện & Khoa làm việc
                     </Title>
-                    <div style={{ 
-                        textAlign: 'center', 
-                        padding: 40, 
+                    <div style={{
+                        textAlign: 'center',
+                        padding: 40,
                         color: '#999',
                         background: '#f9f9f9',
                         borderRadius: 8
@@ -275,13 +332,13 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                     <BankOutlined style={{ marginRight: 8 }} />
                     Liên kết bệnh viện & Khoa làm việc ({hospitalAffiliations.length})
                 </Title>
-                
+
                 <List
                     dataSource={hospitalAffiliations}
                     renderItem={(affiliation, index) => (
                         <List.Item key={affiliation.id || index}>
-                            <Card 
-                                size="small" 
+                            <Card
+                                size="small"
                                 style={{ width: '100%', marginBottom: 8 }}
                                 title={
                                     <Space>
@@ -320,7 +377,7 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                                             <div>
                                                 <Text strong>Bắt đầu hợp đồng: </Text>
                                                 <Text>
-                                                    {affiliation.contractStart 
+                                                    {affiliation.contractStart
                                                         ? dayjs(affiliation.contractStart).format('DD/MM/YYYY')
                                                         : 'Chưa xác định'
                                                     }
@@ -329,7 +386,7 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                                             <div>
                                                 <Text strong>Kết thúc hợp đồng: </Text>
                                                 <Text>
-                                                    {affiliation.contractEnd 
+                                                    {affiliation.contractEnd
                                                         ? dayjs(affiliation.contractEnd).format('DD/MM/YYYY')
                                                         : 'Chưa xác định'
                                                     }
@@ -364,9 +421,9 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                         <MedicineBoxOutlined style={{ marginRight: 8 }} />
                         Chuyên khoa
                     </Title>
-                    <div style={{ 
-                        textAlign: 'center', 
-                        padding: 40, 
+                    <div style={{
+                        textAlign: 'center',
+                        padding: 40,
                         color: '#999',
                         background: '#f9f9f9',
                         borderRadius: 8
@@ -384,11 +441,11 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                     <MedicineBoxOutlined style={{ marginRight: 8 }} />
                     Chuyên khoa ({specializations.length})
                 </Title>
-                
+
                 <Row gutter={[16, 16]}>
                     {specializations.map((spec, index) => (
                         <Col xs={24} sm={12} md={8} key={spec.id || index}>
-                            <Card 
+                            <Card
                                 size="small"
                                 hoverable
                                 cover={
@@ -397,10 +454,10 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                                             <img
                                                 alt={spec.name || 'Chuyên khoa'}
                                                 src={spec.image}
-                                                style={{ 
-                                                    width: '100%', 
-                                                    height: '100%', 
-                                                    objectFit: 'cover' 
+                                                style={{
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    objectFit: 'cover'
                                                 }}
                                                 onError={(e) => {
                                                     console.log("Image failed to load:", spec.image);
@@ -409,8 +466,8 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                                             />
                                         </div>
                                     ) : (
-                                        <div style={{ 
-                                            height: 120, 
+                                        <div style={{
+                                            height: 120,
                                             background: '#f0f0f0',
                                             display: 'flex',
                                             alignItems: 'center',
@@ -447,7 +504,7 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
             title={
                 <Space>
                     <UserOutlined />
-                    <span>Thông tin bác sĩ - {user.fullname || 'Không rõ'}</span>
+                    <span>Thông tin {currentStaffType === 'doctor' ? 'bác sĩ' : 'y tá'} - {user.fullname || 'Không rõ'}</span>
                 </Space>
             }
             open={visible}
@@ -471,7 +528,7 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                             <Title level={4} style={{ marginBottom: 8 }}>
                                 {user.fullname || 'Tên không xác định'}
                             </Title>
-                            {getStaffTypeText(doctorData.type || 'doctor')}
+                            {getStaffTypeText(staffData.type || currentStaffType)}
                         </div>
                     </Col>
                     <Col span={18}>
@@ -480,31 +537,33 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                                 <Space direction="vertical" size={8} style={{ width: '100%' }}>
                                     <div>
                                         <Text strong>Trạng thái: </Text>
-                                        {getStatusTag(doctorData.status || 'active')}
+                                        {getStatusTag(staffData.status || 'active')}
                                     </div>
                                     <div>
-                                        <Text strong>Mã bác sĩ: </Text>
-                                        <Text code>{doctorData?.id || 'N/A'}</Text>
+                                        <Text strong>Mã {currentStaffType === 'doctor' ? 'bác sĩ' : 'y tá'}: </Text>
+                                        <Text code>{staffData?.id || 'N/A'}</Text>
                                     </div>
                                     <div>
                                         <Text strong>Kinh nghiệm: </Text>
-                                        <Text>{doctorData.experience || getPracticingDuration(doctorData?.practicingFrom)}</Text>
+                                        <Text>{staffData.experience || getPracticingDuration(staffData?.practicingFrom)}</Text>
                                     </div>
                                 </Space>
                             </Col>
                             <Col span={12}>
                                 <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                                    <div>
-                                        <Text strong>Số chuyên khoa: </Text>
-                                        <Tag color="purple">{specializations?.length || 0}</Tag>
-                                    </div>
+                                    {currentStaffType === 'doctor' && (
+                                        <div>
+                                            <Text strong>Số chuyên khoa: </Text>
+                                            <Tag color="purple">{specializations?.length || 0}</Tag>
+                                        </div>
+                                    )}
                                     <div>
                                         <Text strong>Số bệnh viện: </Text>
                                         <Tag color="blue">{hospitalAffiliations?.length || 0}</Tag>
                                     </div>
                                     <div>
                                         <Text strong>Tổng bệnh nhân: </Text>
-                                        <Tag color="green">{doctorData.totalPatients || 0}</Tag>
+                                        <Tag color="green">{staffData.totalPatients || 0}</Tag>
                                     </div>
                                 </Space>
                             </Col>
@@ -565,57 +624,59 @@ const ViewStaff = ({ visible, onCancel, staff }) => {
                 </Title>
                 <Descriptions bordered column={2} size="small">
                     <Descriptions.Item label="Mô tả" span={2}>
-                        {doctorData?.description || 'Chưa cập nhật'}
+                        {staffData?.description || 'Chưa cập nhật'}
                     </Descriptions.Item>
                     <Descriptions.Item label="Bắt đầu hành nghề">
                         <Space>
                             <CalendarOutlined />
-                            {doctorData?.practicingFrom 
-                                ? dayjs(doctorData.practicingFrom).format('DD/MM/YYYY')
+                            {staffData?.practicingFrom
+                                ? dayjs(staffData.practicingFrom).format('DD/MM/YYYY')
                                 : 'Chưa cập nhật'
                             }
                         </Space>
                     </Descriptions.Item>
                     <Descriptions.Item label="Thời gian hành nghề">
-                        <Text strong>{doctorData.experience || getPracticingDuration(doctorData?.practicingFrom)}</Text>
+                        <Text strong>{staffData.experience || getPracticingDuration(staffData?.practicingFrom)}</Text>
                     </Descriptions.Item>
-                    <Descriptions.Item label="Phí tư vấn">
-                        <Text strong style={{ color: '#52c41a' }}>
-                            {doctorData.consultationFee ? `${Number(doctorData.consultationFee).toLocaleString()} VNĐ` : 'Chưa cập nhật'}
-                        </Text>
-                    </Descriptions.Item>
+                    {currentStaffType === 'doctor' && (
+                        <Descriptions.Item label="Phí tư vấn">
+                            <Text strong style={{ color: '#52c41a' }}>
+                                {staffData.consultationFee ? `${Number(staffData.consultationFee).toLocaleString()} VNĐ` : 'Chưa cập nhật'}
+                            </Text>
+                        </Descriptions.Item>
+                    )}
                     <Descriptions.Item label="Đánh giá">
                         <Space>
-                            <Text strong>{doctorData.rating || 'N/A'}</Text>
+                            <Text strong>{staffData.rating || 'N/A'}</Text>
                             <Text type="secondary">/ 5.0</Text>
                         </Space>
                     </Descriptions.Item>
                     <Descriptions.Item label="Lịch làm việc" span={2}>
-                        <Text>{doctorData.schedule || 'Chưa cập nhật'}</Text>
+                        <Text>{staffData.schedule || 'Chưa cập nhật'}</Text>
                     </Descriptions.Item>
                 </Descriptions>
 
                 {/* Hospital Affiliations & Departments */}
                 {renderHospitalAffiliations()}
 
-                {/* Specializations */}
-                {renderSpecializations()}
+                {/* Specializations - Only show for doctors */}
+                {currentStaffType === 'doctor' && renderSpecializations()}
 
                 {/* Bio Section */}
-                {doctorData?.description && (
+                {staffData?.description && (
                     <>
                         <Divider />
                         <Title level={5} style={{ marginBottom: 16 }}>
                             <BookOutlined style={{ marginRight: 8 }} />
                             Mô tả chi tiết
                         </Title>
-                        <div style={{ 
-                            background: '#f6f8fa', 
-                            padding: 16, 
+                        <div style={{
+                            background: '#f6f8fa',
+                            padding: 16,
                             borderRadius: 8,
                             border: '1px solid #e1e4e8'
                         }}>
-                            <Text>{doctorData.description}</Text>
+                            <Text>{staffData.description}</Text>
                         </div>
                     </>
                 )}

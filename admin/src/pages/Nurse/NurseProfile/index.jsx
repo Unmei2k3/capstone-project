@@ -47,14 +47,13 @@ function NurseProfile() {
 
   const [form] = Form.useForm();
 
-  // Load provinces
   useEffect(() => {
     getProvinces()
       .then((data) => setProvinces(data.data))
       .catch((err) => console.error("Error fetching provinces:", err));
   }, []);
 
-  // When userDefault and provinces ready, set values into form and selectedProvince
+
   useEffect(() => {
     if (userDefault && provinces.length > 0) {
       form.setFieldsValue({
@@ -80,7 +79,6 @@ function NurseProfile() {
     }
   }, [userDefault, provinces, form]);
 
-  // Update wards list when selectedProvince changes
   useEffect(() => {
     if (selectedProvince) {
       const provinceObj = provinces.find((p) => p.province === selectedProvince);
@@ -90,7 +88,6 @@ function NurseProfile() {
     }
   }, [selectedProvince, provinces]);
 
-  // Show messages from messageRedux slice
   useEffect(() => {
     if (messageState) {
       messageApi.open({
@@ -101,17 +98,16 @@ function NurseProfile() {
     }
   }, [messageState, dispatch, messageApi]);
 
-  // Sync selectedProvince and reset ward on province change in form
+ 
   const onFormValuesChange = (changedValues) => {
     if ("province" in changedValues) {
       const newProvince = changedValues.province || null;
       setSelectedProvince(newProvince);
-      // Reset ward every time province changes
       form.setFieldsValue({ ward: undefined });
     }
   };
 
-  // Map form values -> API payload
+
   const fieldMap = {
     userName: "userName",
     fullname: "fullname",
@@ -273,7 +269,7 @@ function NurseProfile() {
                     label="Email"
                     rules={[{ type: "email", message: "Email không hợp lệ!" }]}
                   >
-                    <Input prefix={<MailOutlined />} size="large" />
+                    <Input prefix={<MailOutlined />} size="large" disabled />
                   </Form.Item>
                 </Col>
               </Row>

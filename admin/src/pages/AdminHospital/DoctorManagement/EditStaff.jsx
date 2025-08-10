@@ -20,6 +20,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { setMessage } from '../../../redux/slices/messageSlice';
 import { updateDoctor } from '../../../services/doctorService';
+import { updateUser } from '../../../services/userService';
 import { getProvinces } from '../../../services/provinceService';
 import { getHospitalById, getSpecializationsByHospitalId } from '../../../services/hospitalService';
 import { getDepartmentsByHospitalId } from '../../../services/departmentService';
@@ -31,19 +32,19 @@ const { TextArea } = Input;
 const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepartments, specializations: propSpecializations }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  
+
   // Hospital-specific states
   const [currentHospital, setCurrentHospital] = useState(null);
   const [hospitalSpecializations, setHospitalSpecializations] = useState([]);
   const [hospitalDepartments, setHospitalDepartments] = useState([]);
   const [departmentsLoading, setDepartmentsLoading] = useState(false);
   const [specializationsLoading, setSpecializationsLoading] = useState(false);
-  
+
   // Address states
   const [provinces, setProvinces] = useState([]);
   const [wards, setWards] = useState([]);
   const [selectedProvince, setSelectedProvince] = useState(null);
-  
+
   const dispatch = useDispatch();
   const user = useSelector((state) => state.user.user);
 
@@ -73,7 +74,7 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
 
     setDepartmentsLoading(true);
     setSpecializationsLoading(true);
-    
+
     try {
       const hospitalId = user.hospitals[0].id;
       console.log('🏥 Fetching data for hospital ID:', hospitalId);
@@ -144,7 +145,7 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
                 } else {
                   dobValue = dayjs(dobSource);
                 }
-                
+
                 if (!dobValue.isValid()) {
                   console.warn("⚠️ Invalid DOB, setting to null");
                   dobValue = null;
@@ -180,8 +181,8 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
               fullname: user.fullname || staff.fullname || staff.name || "",
               email: user.email || staff.email || "",
               phoneNumber: user.phoneNumber || staff.phoneNumber || staff.phone || "",
-              gender: typeof user.gender === 'boolean' 
-                ? (user.gender ? 'male' : 'female') 
+              gender: typeof user.gender === 'boolean'
+                ? (user.gender ? 'male' : 'female')
                 : (user.gender === 'male' ? 'male' : 'female'),
               dob: dobValue,
               cccd: user.cccd || staff.cccd || "",
@@ -232,8 +233,8 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
               fullname: staff.fullname || staff.name || "",
               email: staff.email || "",
               phoneNumber: staff.phoneNumber || staff.phone || "",
-              gender: typeof staff.gender === 'boolean' 
-                ? (staff.gender ? 'male' : 'female') 
+              gender: typeof staff.gender === 'boolean'
+                ? (staff.gender ? 'male' : 'female')
                 : (staff.gender === 'male' ? 'male' : 'female'),
               dob: dobValue,
               cccd: staff.cccd || "",
@@ -277,7 +278,7 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
       };
 
       const formData = prepareFormData();
-      
+
       console.log("📝 Final form data to set:", formData);
       console.log("🗓️ DOB value:", formData.dob, formData.dob?.format?.('YYYY-MM-DD'));
       console.log("🏥 Department ID:", formData.departmentId);
@@ -300,11 +301,11 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
   // ✅ Handle form values change
   const onFormValuesChange = (changedValues) => {
     console.log("📝 Form values changed:", changedValues);
-    
+
     if ("province" in changedValues) {
       const newProvince = changedValues.province || null;
       setSelectedProvince(newProvince);
-      
+
       // ✅ Clear ward when province changes
       if (newProvince !== selectedProvince) {
         form.setFieldsValue({ ward: undefined });
@@ -316,9 +317,15 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
   const handleSubmit = async (values) => {
     setLoading(true);
 
+    // Determine staff type outside try block for error handling
+    const isDoctor = staff.type === 'doctor' || staff.editApiType === 'updateDoctor';
+    const isNurse = staff.type === 'nurse' || staff.editApiType === 'updateUser';
+    const staffTypeText = isDoctor ? 'bác sĩ' : 'y tá';
+
     try {
       console.log('🔄 Starting update process for staff ID:', staff.id);
       console.log('📝 Form values received:', values);
+      console.log('👤 Staff type:', staff.type || staff.editApiType);
 
       // ✅ Pre-submit validation
       if (!values.dob) {
@@ -327,22 +334,18 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
         return;
       }
 
-      if (!values.departmentId) {
-        message.error('Department selection is required');
-        setLoading(false);
-        return;
-      }
+      if (isDoctor) {
+        if (!values.departmentId) {
+          message.error('Department selection is required');
+          setLoading(false);
+          return;
+        }
 
-      if (!values.specializationIds || values.specializationIds.length === 0) {
-        message.error('At least one specialization is required');
-        setLoading(false);
-        return;
-      }
-
-      // ✅ Get hospital ID
-      const hospitalId = currentHospital?.id || user?.hospitals?.[0]?.id;
-      if (!hospitalId) {
-        throw new Error('Hospital ID not found. Please refresh and try again.');
+        if (!values.specializationIds || values.specializationIds.length === 0) {
+          message.error('At least one specialization is required');
+          setLoading(false);
+          return;
+        }
       }
 
       // ✅ Format dates properly
@@ -350,8 +353,8 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
       if (values.dob) {
         try {
           if (typeof values.dob === 'string') {
-            dobFormatted = values.dob.match(/^\d{4}-\d{2}-\d{2}$/) 
-              ? values.dob 
+            dobFormatted = values.dob.match(/^\d{4}-\d{2}-\d{2}$/)
+              ? values.dob
               : dayjs(values.dob).format('YYYY-MM-DD');
           } else if (values.dob && values.dob.format) {
             dobFormatted = values.dob.format('YYYY-MM-DD');
@@ -380,49 +383,82 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
         }
       }
 
-      // ✅ Prepare update payload
-      const updateData = {
-        id: staff.originalData?.id || staff.id,
-        
-        hospitalAffiliations: [{
-          hospitalId: parseInt(hospitalId),
-          departmentId: parseInt(values.departmentId),
-          contractStart: dayjs().toISOString(),
-          contractEnd: dayjs().add(1, 'year').toISOString(),
-          position: "Doctor"
-        }],
+      let response;
 
-        user: {
-          id: staff.originalData?.user?.id || staff.userId || staff.id,
+      if (isDoctor) {
+        // ✅ Handle doctor update
+        const hospitalId = currentHospital?.id || user?.hospitals?.[0]?.id;
+        if (!hospitalId) {
+          throw new Error('Hospital ID not found. Please refresh and try again.');
+        }
+
+        const updateData = {
+          id: staff.originalData?.id || staff.id,
+
+          hospitalAffiliations: [{
+            hospitalId: parseInt(hospitalId),
+            departmentId: parseInt(values.departmentId),
+            contractStart: dayjs().toISOString(),
+            contractEnd: dayjs().add(1, 'year').toISOString(),
+            position: "Doctor"
+          }],
+
+          user: {
+            id: staff.originalData?.user?.id || staff.userId || staff.id,
+            fullname: values.fullname?.trim() || "",
+            phoneNumber: values.phoneNumber?.trim() || "",
+            email: values.email?.trim() || "",
+            avatarUrl: values.avatarUrl?.trim() || "",
+            dob: dobFormatted,
+            gender: values.gender === 'male',
+            job: values.job || 'Doctor',
+            cccd: values.cccd?.trim() || "",
+            province: values.province?.trim() || "",
+            ward: values.ward?.trim() || "",
+            streetAddress: values.streetAddress?.trim() || ""
+          },
+
+          doctor: {
+            id: staff.originalData?.id || staff.id,
+            description: values.description?.trim() || "",
+            practicingFrom: practicingFromFormatted,
+          },
+
+          description: values.description?.trim() || "",
+          practicingFrom: practicingFromFormatted,
+          specializationIds: Array.isArray(values.specializationIds)
+            ? values.specializationIds
+            : [values.specializationIds]
+        };
+
+        console.log('📤 Doctor update payload:', JSON.stringify(updateData, null, 2));
+        response = await updateDoctor(staff.id, updateData);
+
+      } else if (isNurse) {
+        // ✅ Handle nurse update
+        const updateData = {
+          id: staff.id || staff.userId,
           fullname: values.fullname?.trim() || "",
           phoneNumber: values.phoneNumber?.trim() || "",
           email: values.email?.trim() || "",
           avatarUrl: values.avatarUrl?.trim() || "",
           dob: dobFormatted,
           gender: values.gender === 'male',
-          job: values.job || 'Doctor',
+          job: values.job || 'Nurse',
           cccd: values.cccd?.trim() || "",
           province: values.province?.trim() || "",
           ward: values.ward?.trim() || "",
-          streetAddress: values.streetAddress?.trim() || ""
-        },
-
-        doctor: {
-          id: staff.originalData?.id || staff.id,
+          streetAddress: values.streetAddress?.trim() || "",
           description: values.description?.trim() || "",
           practicingFrom: practicingFromFormatted,
-        },
+        };
 
-        description: values.description?.trim() || "",
-        practicingFrom: practicingFromFormatted,
-        specializationIds: Array.isArray(values.specializationIds) 
-          ? values.specializationIds 
-          : [values.specializationIds]
-      };
+        console.log('📤 Nurse update payload:', JSON.stringify(updateData, null, 2));
+        response = await updateUser(staff.id, updateData);
+      } else {
+        throw new Error('Unknown staff type. Cannot determine update method.');
+      }
 
-      console.log('📤 Update payload:', JSON.stringify(updateData, null, 2));
-
-      const response = await updateDoctor(staff.id, updateData);
       console.log('📥 Update response:', response);
 
       // ✅ Handle success
@@ -436,24 +472,24 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
       );
 
       if (isSuccess) {
-        console.log('✅ Doctor updated successfully');
-        message.success('Doctor updated successfully!');
+        console.log(`✅ ${staffTypeText} updated successfully`);
+        message.success(`${staffTypeText} updated successfully!`);
         dispatch(setMessage({
           type: 'success',
-          content: '🎉 Doctor information updated successfully!',
+          content: `🎉 Thông tin ${staffTypeText} đã được cập nhật thành công!`,
           duration: 4
         }));
 
         onSuccess();
       } else {
-        const errorMessage = response?.message || response?.error || 'Failed to update doctor';
+        const errorMessage = response?.message || response?.error || `Failed to update ${staffTypeText}`;
         throw new Error(errorMessage);
       }
 
     } catch (error) {
-      console.error('❌ Error updating doctor:', error);
+      console.error(`❌ Error updating ${staffTypeText}:`, error);
 
-      let errorMessage = 'Failed to update doctor. Please try again.';
+      let errorMessage = `Failed to update ${staffTypeText}. Please try again.`;
 
       if (error.response?.data) {
         if (typeof error.response.data === 'string') {
@@ -510,7 +546,7 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
             fontSize: '20px'
           }} />
           <span style={{ fontSize: '18px', fontWeight: 600 }}>
-            Edit Doctor - {staff.fullname || staff.name}
+            Chỉnh sửa {(staff.type === 'doctor' || staff.editApiType === 'updateDoctor') ? 'Bác sĩ' : 'Y tá'} - {staff.fullname || staff.name}
           </span>
           {currentHospital && (
             <span style={{
@@ -675,7 +711,7 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
                 </Col>
               </Row>
 
-              <Row gutter={16}>
+              {/* <Row gutter={16}>
                 <Col xs={24} md={12}>
                   <Form.Item
                     name="job"
@@ -684,7 +720,7 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
                     <Input placeholder="Doctor" />
                   </Form.Item>
                 </Col>
-              </Row>
+              </Row> */}
             </div>
 
             {/* Professional Information */}
@@ -727,63 +763,66 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
                 />
               </Form.Item>
 
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="departmentId"
-                    label="Department"
-                    rules={[{ required: true, message: 'Please select department' }]}
-                  >
-                    <Select
-                      placeholder={hospitalDepartments.length > 0 ? "Select department" : "Loading departments..."}
-                      loading={departmentsLoading}
-                      showSearch
-                      filterOption={(input, option) =>
-                        option?.children?.toLowerCase().includes(input.toLowerCase())
-                      }
-                      notFoundContent={hospitalDepartments.length === 0 ? "No departments found" : "No matching departments"}
+              {/* Department and Specializations - Only for Doctors */}
+              {(staff.type === 'doctor' || staff.editApiType === 'updateDoctor') && (
+                <Row gutter={16}>
+                  <Col xs={24} md={12}>
+                    <Form.Item
+                      name="departmentId"
+                      label="Department"
+                      rules={[{ required: true, message: 'Please select department' }]}
                     >
-                      {hospitalDepartments?.map(dept => (
-                        <Option key={dept.id} value={dept.id}>
-                          🏥 {dept.name}
-                          {dept.description && (
-                            <span style={{ color: '#999', fontSize: '12px' }}>
-                              {' - ' + dept.description}
-                            </span>
-                          )}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
+                      <Select
+                        placeholder={hospitalDepartments.length > 0 ? "Select department" : "Loading departments..."}
+                        loading={departmentsLoading}
+                        showSearch
+                        filterOption={(input, option) =>
+                          option?.children?.toLowerCase().includes(input.toLowerCase())
+                        }
+                        notFoundContent={hospitalDepartments.length === 0 ? "No departments found" : "No matching departments"}
+                      >
+                        {hospitalDepartments?.map(dept => (
+                          <Option key={dept.id} value={dept.id}>
+                            🏥 {dept.name}
+                            {dept.description && (
+                              <span style={{ color: '#999', fontSize: '12px' }}>
+                                {' - ' + dept.description}
+                              </span>
+                            )}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
 
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="specializationIds"
-                    label="Specializations"
-                    rules={[{ required: true, message: 'Please select specializations' }]}
-                  >
-                    <Select
-                      mode="multiple"
-                      placeholder={hospitalSpecializations.length > 0 ? "Select specializations" : "Loading specializations..."}
-                      loading={specializationsLoading}
-                      showSearch
-                      notFoundContent={hospitalSpecializations.length === 0 ? "No specializations found" : "No matching specializations"}
+                  <Col xs={24} md={12}>
+                    <Form.Item
+                      name="specializationIds"
+                      label="Specializations"
+                      rules={[{ required: true, message: 'Please select specializations' }]}
                     >
-                      {hospitalSpecializations?.map(spec => (
-                        <Option key={spec.id} value={spec.id}>
-                          🩺 {spec.name}
-                          {spec.description && (
-                            <span style={{ color: '#999', fontSize: '12px' }}>
-                              {' - ' + spec.description}
-                            </span>
-                          )}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
+                      <Select
+                        mode="multiple"
+                        placeholder={hospitalSpecializations.length > 0 ? "Select specializations" : "Loading specializations..."}
+                        loading={specializationsLoading}
+                        showSearch
+                        notFoundContent={hospitalSpecializations.length === 0 ? "No specializations found" : "No matching specializations"}
+                      >
+                        {hospitalSpecializations?.map(spec => (
+                          <Option key={spec.id} value={spec.id}>
+                            🩺 {spec.name}
+                            {spec.description && (
+                              <span style={{ color: '#999', fontSize: '12px' }}>
+                                {' - ' + spec.description}
+                              </span>
+                            )}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                </Row>
+              )}
 
               <Row gutter={16}>
                 <Col xs={24} md={12}>

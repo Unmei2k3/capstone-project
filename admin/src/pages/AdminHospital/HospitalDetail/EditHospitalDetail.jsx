@@ -8,121 +8,115 @@ import {
     Row,
     Col,
     message,
-    Spin
+    Spin,
+    TimePicker
 } from 'antd';
 import {
     EnvironmentOutlined,
     PhoneOutlined,
     MailOutlined,
-    BankOutlined
+    BankOutlined,
+    ClockCircleOutlined
 } from '@ant-design/icons';
 import { updateHospital } from '../../../services/hospitalService';
-import { getProvinces } from '../../../services/provinceService'; // ✅ Import from provinceService
+import dayjs from 'dayjs';
 
 const { Option } = Select;
 
 const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
-    
-    // ✅ States for provinces and wards
+
+    // ✅ Add states for provinces and wards
     const [provinces, setProvinces] = useState([]);
     const [wards, setWards] = useState([]);
     const [selectedProvince, setSelectedProvince] = useState(null);
     const [loadingProvinces, setLoadingProvinces] = useState(false);
     const [loadingWards, setLoadingWards] = useState(false);
 
+    // ✅ Mock data for provinces and wards (replace with actual API calls)
+    const mockProvinces = [
+        {
+            province: "Hà Nội", wards: [
+                { name: "Quận Ba Đình" },
+                { name: "Quận Hoàn Kiếm" },
+                { name: "Quận Hai Bà Trưng" },
+                { name: "Quận Đống Đa" },
+                { name: "Quận Tây Hồ" },
+                { name: "Quận Cầu Giấy" },
+                { name: "Quận Thanh Xuân" },
+            ]
+        },
+        {
+            province: "TP.Hồ Chí Minh", wards: [
+                { name: "Quận 1" },
+                { name: "Quận 2" },
+                { name: "Quận 3" },
+                { name: "Quận 4" },
+                { name: "Quận 5" },
+                { name: "Quận Bình Thạnh" },
+                { name: "Quận Tân Bình" },
+            ]
+        },
+        {
+            province: "Đà Nẵng", wards: [
+                { name: "Quận Hải Châu" },
+                { name: "Quận Thanh Khê" },
+                { name: "Quận Sơn Trà" },
+                { name: "Quận Ngũ Hành Sơn" },
+                { name: "Quận Liên Chiểu" },
+            ]
+        },
+        {
+            province: "Hải Phòng", wards: [
+                { name: "Quận Hồng Bàng" },
+                { name: "Quận Lê Chân" },
+                { name: "Quận Ngô Quyền" },
+                { name: "Quận Kiến An" },
+            ]
+        },
+        {
+            province: "Cần Thơ", wards: [
+                { name: "Quận Ninh Kiều" },
+                { name: "Quận Ô Môn" },
+                { name: "Quận Bình Thuỷ" },
+                { name: "Quận Cái Răng" },
+            ]
+        },
+    ];
+
     // ✅ Load provinces when modal opens
     useEffect(() => {
         if (visible) {
-            fetchProvinces();
+            setLoadingProvinces(true);
+            // Simulate API call
+            setTimeout(() => {
+                setProvinces(mockProvinces);
+                setLoadingProvinces(false);
+            }, 500);
         }
     }, [visible]);
 
-    // ✅ Function to fetch provinces from provinceService
-    const fetchProvinces = async () => {
-        setLoadingProvinces(true);
-        try {
-            console.log("🌏 Fetching provinces from provinceService...");
-            const response = await getProvinces();
-            console.log("📍 Provinces response:", response);
-            
-            // Handle response structure - could be response.data or direct array
-            const provincesData = response.data || response || [];
-            setProvinces(provincesData);
-            console.log("📍 Provinces loaded:", provincesData.length, "provinces");
-        } catch (error) {
-            console.error("❌ Error fetching provinces:", error);
-            message.error('Không thể tải danh sách tỉnh/thành phố');
-            
-            // ✅ Fallback to mock data if API fails
-            console.log("🔄 Using fallback provinces data...");
-            const mockProvinces = [
-                { province: "Hà Nội", wards: [
-                    { name: "Quận Ba Đình" },
-                    { name: "Quận Hoàn Kiếm" },
-                    { name: "Quận Hai Bà Trưng" },
-                    { name: "Quận Đống Đa" },
-                    { name: "Quận Tây Hồ" },
-                    { name: "Quận Cầu Giấy" },
-                    { name: "Quận Thanh Xuân" },
-                ]},
-                { province: "TP.Hồ Chí Minh", wards: [
-                    { name: "Quận 1" },
-                    { name: "Quận 2" },
-                    { name: "Quận 3" },
-                    { name: "Quận 4" },
-                    { name: "Quận 5" },
-                    { name: "Quận Bình Thạnh" },
-                    { name: "Quận Tân Bình" },
-                ]},
-                { province: "Đà Nẵng", wards: [
-                    { name: "Quận Hải Châu" },
-                    { name: "Quận Thanh Khê" },
-                    { name: "Quận Sơn Trà" },
-                    { name: "Quận Ngũ Hành Sơn" },
-                    { name: "Quận Liên Chiểu" },
-                ]},
-                { province: "Hải Phòng", wards: [
-                    { name: "Quận Hồng Bàng" },
-                    { name: "Quận Lê Chân" },
-                    { name: "Quận Ngô Quyền" },
-                    { name: "Quận Kiến An" },
-                ]},
-                { province: "Cần Thơ", wards: [
-                    { name: "Quận Ninh Kiều" },
-                    { name: "Quận Ô Môn" },
-                    { name: "Quận Bình Thuỷ" },
-                    { name: "Quận Cái Răng" },
-                ]},
-            ];
-            setProvinces(mockProvinces);
-        } finally {
-            setLoadingProvinces(false);
-        }
-    };
-
-    // ✅ Populate form with hospital data and set province/ward
+    // ✅ Populate form with hospital data
     useEffect(() => {
         if (visible && hospital) {
             console.log('🏥 Setting hospital data:', hospital);
-            
+
             // Set initial form values
-            const initialValues = {
+            form.setFieldsValue({
                 name: hospital.name,
                 address: hospital.address,
                 province: hospital.province || hospital.state,
                 ward: hospital.ward || hospital.city,
                 phoneNumber: hospital.phoneNumber,
-                email: hospital.email
-            };
-            
-            console.log('📋 Setting form initial values:', initialValues);
-            form.setFieldsValue(initialValues);
+                email: hospital.email,
+                openTime: hospital.openTime ? dayjs(hospital.openTime) : null,
+                closeTime: hospital.closeTime ? dayjs(hospital.closeTime) : null
+            });
 
             // Set selected province and load wards
-            const provinceName = hospital.province || hospital.state;
-            if (provinceName) {
+            if (hospital.province || hospital.state) {
+                const provinceName = hospital.province || hospital.state;
                 setSelectedProvince(provinceName);
                 handleProvinceChange(provinceName, false); // Don't reset ward field
             }
@@ -132,79 +126,96 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
     // ✅ Handle province change and load wards
     const handleProvinceChange = (provinceName, shouldResetWard = true) => {
         console.log('📍 Province changed:', provinceName);
-        
+
         setSelectedProvince(provinceName);
-        
+
         if (shouldResetWard) {
             form.setFieldValue('ward', undefined);
         }
-        
+
         setLoadingWards(true);
-        
+
         // Find province and get its wards
-        const selectedProvinceData = provinces.find(p => p.province === provinceName);
-        
-        // Simulate loading delay for better UX
+        const selectedProvinceData = mockProvinces.find(p => p.province === provinceName);
+
         setTimeout(() => {
-            if (selectedProvinceData && selectedProvinceData.wards) {
+            if (selectedProvinceData) {
                 setWards(selectedProvinceData.wards);
                 console.log(`🏘️ Loaded ${selectedProvinceData.wards.length} wards for ${provinceName}`);
             } else {
                 setWards([]);
-                console.log(`⚠️ No wards found for province: ${provinceName}`);
             }
             setLoadingWards(false);
         }, 300);
     };
-
-    // ✅ Update wards when province changes
-    useEffect(() => {
-        if (selectedProvince && provinces.length > 0) {
-            const provinceObj = provinces.find((p) => p.province === selectedProvince);
-            const wardsList = provinceObj?.wards || [];
-            setWards(wardsList);
-            console.log("🏘️ Wards for province", selectedProvince, ":", wardsList.length, "wards");
-        } else {
-            setWards([]);
-        }
-    }, [selectedProvince, provinces]);
 
     // ✅ Handle form submission
     const handleSubmit = async () => {
         try {
             setLoading(true);
             console.log('💾 Submitting hospital update...');
-            
+
             const values = await form.validateFields();
             console.log('📋 Form values:', values);
+            console.log('🕒 Open time:', values.openTime?.format('HH:mm'));
+            console.log('🕒 Close time:', values.closeTime?.format('HH:mm'));
 
-            // ✅ Only update basic hospital information
+            // ✅ Build update payload - only include non-empty fields
             const updateData = {
-                id: hospital.id,
-                name: values.name.trim(),
-                address: values.address.trim(),
-                province: values.province,
-                ward: values.ward,
-                phoneNumber: values.phoneNumber.trim(),
-                email: values.email.trim(),
-                // Keep other existing fields unchanged
-                ...hospital,
-                // Override with new basic info
-                state: values.province, // Map province to state if needed
-                city: values.ward,      // Map ward to city if needed
+                id: hospital.id
             };
 
-            console.log('🔄 Updating hospital with data:', updateData);
+            // Only add fields that have values (not empty/null/undefined)
+            if (values.name && values.name.trim()) {
+                updateData.name = values.name.trim();
+            }
+
+            if (values.address && values.address.trim()) {
+                updateData.address = values.address.trim();
+            }
+
+            if (values.province) {
+                updateData.province = values.province;
+            }
+
+            if (values.ward) {
+                updateData.ward = values.ward;
+            }
+
+            if (values.phoneNumber && values.phoneNumber.trim()) {
+                updateData.phoneNumber = values.phoneNumber.trim();
+            }
+
+            if (values.email && values.email.trim()) {
+                updateData.email = values.email.trim();
+            }
+
+            // ✅ Only add time fields if they are provided
+            if (values.openTime) {
+                updateData.openTime = values.openTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+            }
+
+            if (values.closeTime) {
+                updateData.closeTime = values.closeTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+            }
+
+            console.log('🔄 Final update payload:', updateData);
+            console.log('📊 Fields to update:', Object.keys(updateData).filter(k => k !== 'id'));
+
+            // ✅ Check if at least one field is being updated
+            const fieldsToUpdate = Object.keys(updateData).filter(k => k !== 'id');
+            if (fieldsToUpdate.length === 0) {
+                message.warning('Vui lòng điền ít nhất một trường để cập nhật!');
+                return;
+            }
+
+            console.log(`🚀 Updating ${fieldsToUpdate.length} fields:`, fieldsToUpdate);
 
             const response = await updateHospital(updateData);
             console.log('✅ Hospital updated successfully:', response);
 
             message.success('Cập nhật thông tin bệnh viện thành công!');
-            
-            // Call onSuccess with updated data
-            if (onSuccess) {
-                onSuccess(response.result || updateData);
-            }
+            onSuccess(response.result || updateData);
 
         } catch (error) {
             console.error('❌ Error updating hospital:', error);
@@ -213,10 +224,7 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
                 message.error('Vui lòng kiểm tra lại các trường bắt buộc!');
                 console.log('📝 Form validation errors:', error.errorFields);
             } else {
-                const errorMessage = error.response?.data?.message || 
-                                   error.message || 
-                                   'Cập nhật thông tin thất bại!';
-                message.error(errorMessage);
+                message.error('Cập nhật thông tin thất bại!');
             }
         } finally {
             setLoading(false);
@@ -229,17 +237,7 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
         form.resetFields();
         setSelectedProvince(null);
         setWards([]);
-        if (onCancel) {
-            onCancel();
-        }
-    };
-
-    // ✅ Handle form values change to update province/ward
-    const onFormValuesChange = (changedValues) => {
-        if ("province" in changedValues) {
-            const newProvince = changedValues.province || null;
-            handleProvinceChange(newProvince, true); // Reset ward when province changes
-        }
+        onCancel();
     };
 
     return (
@@ -264,19 +262,19 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
             style={{ top: 50 }}
         >
             <Spin spinning={loading} tip="Đang cập nhật thông tin...">
-                <div style={{ 
+                <div style={{
                     padding: '20px 0',
                     background: '#fafafa',
                     borderRadius: '8px',
                     marginBottom: '20px',
                     textAlign: 'center'
                 }}>
-                    <p style={{ 
-                        margin: 0, 
+                    <p style={{
+                        margin: 0,
                         color: '#666',
                         fontSize: '14px'
                     }}>
-                        ℹ️ Chỉ có thể chỉnh sửa thông tin cơ bản của bệnh viện
+                        ℹ️ Chỉnh sửa tùy chọn - Chỉ cập nhật những trường bạn muốn thay đổi
                     </p>
                 </div>
 
@@ -284,7 +282,6 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
                     form={form}
                     layout="vertical"
                     preserve={false}
-                    onValuesChange={onFormValuesChange} // ✅ Handle form changes
                     style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: '8px' }}
                 >
                     {/* ✅ Hospital Name */}
@@ -296,12 +293,11 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
                             </span>
                         }
                         rules={[
-                            { required: true, message: 'Vui lòng nhập tên bệnh viện' },
                             { min: 5, message: 'Tên bệnh viện phải có ít nhất 5 ký tự' }
                         ]}
                     >
-                        <Input 
-                            placeholder="Nhập tên bệnh viện" 
+                        <Input
+                            placeholder="Nhập tên bệnh viện"
                             style={{ fontSize: '14px' }}
                         />
                     </Form.Item>
@@ -316,12 +312,11 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
                             </span>
                         }
                         rules={[
-                            { required: true, message: 'Vui lòng nhập địa chỉ' },
                             { min: 10, message: 'Địa chỉ phải có ít nhất 10 ký tự' }
                         ]}
                     >
-                        <Input 
-                            placeholder="Nhập địa chỉ đầy đủ (số nhà, tên đường, phường/xã)" 
+                        <Input
+                            placeholder="Nhập địa chỉ đầy đủ (số nhà, tên đường, phường/xã)"
                             style={{ fontSize: '14px' }}
                         />
                     </Form.Item>
@@ -337,7 +332,7 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
                                     </span>
                                 }
                                 rules={[
-                                    { required: true, message: 'Vui lòng chọn tỉnh/thành phố' }
+                                    // No required validation - optional field
                                 ]}
                             >
                                 <Select
@@ -345,15 +340,13 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
                                     loading={loadingProvinces}
                                     showSearch
                                     allowClear
+                                    onChange={handleProvinceChange}
                                     filterOption={(input, option) =>
                                         (option?.children ?? "")
                                             .toLowerCase()
                                             .includes(input.toLowerCase())
                                     }
                                     style={{ fontSize: '14px' }}
-                                    onSelect={(value) => {
-                                        console.log("🏙️ Province selected:", value);
-                                    }}
                                 >
                                     {provinces.map((province) => (
                                         <Option key={province.province} value={province.province}>
@@ -373,15 +366,11 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
                                     </span>
                                 }
                                 rules={[
-                                    { required: true, message: 'Vui lòng chọn quận/huyện' }
+                                    // No required validation - optional field
                                 ]}
                             >
                                 <Select
-                                    placeholder={
-                                        selectedProvince 
-                                            ? "Chọn quận/huyện"
-                                            : "Chọn tỉnh/thành phố trước"
-                                    }
+                                    placeholder="Chọn quận/huyện"
                                     loading={loadingWards}
                                     showSearch
                                     allowClear
@@ -393,15 +382,12 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
                                     }
                                     style={{ fontSize: '14px' }}
                                     notFoundContent={
-                                        !selectedProvince 
+                                        !selectedProvince
                                             ? "Vui lòng chọn tỉnh/thành phố trước"
-                                            : loadingWards 
-                                                ? "Đang tải..." 
+                                            : loadingWards
+                                                ? "Đang tải..."
                                                 : "Không tìm thấy quận/huyện"
                                     }
-                                    onSelect={(value) => {
-                                        console.log("🏘️ Ward selected:", value);
-                                    }}
                                 >
                                     {wards.map((ward) => (
                                         <Option key={ward.name} value={ward.name}>
@@ -425,12 +411,11 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
                                     </span>
                                 }
                                 rules={[
-                                    { required: true, message: 'Vui lòng nhập số điện thoại' },
                                     { pattern: /^[0-9]{10,11}$/, message: 'Số điện thoại phải có 10-11 chữ số' }
                                 ]}
                             >
-                                <Input 
-                                    placeholder="Nhập số điện thoại (10-11 chữ số)" 
+                                <Input
+                                    placeholder="Nhập số điện thoại (10-11 chữ số)"
                                     style={{ fontSize: '14px' }}
                                 />
                             </Form.Item>
@@ -446,13 +431,68 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
                                     </span>
                                 }
                                 rules={[
-                                    { required: true, message: 'Vui lòng nhập email' },
                                     { type: 'email', message: 'Email không hợp lệ' }
                                 ]}
                             >
-                                <Input 
-                                    placeholder="Nhập địa chỉ email" 
+                                <Input
+                                    placeholder="Nhập địa chỉ email"
                                     style={{ fontSize: '14px' }}
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    {/* ✅ Operating Hours */}
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item
+                                name="openTime"
+                                label={
+                                    <span style={{ fontWeight: 600, color: '#262626' }}>
+                                        <ClockCircleOutlined style={{ marginRight: 4 }} />
+                                        Giờ mở cửa
+                                    </span>
+                                }
+                            >
+                                <TimePicker
+                                    placeholder="Chọn giờ mở cửa"
+                                    style={{ width: '100%', fontSize: '14px' }}
+                                    format="HH:mm"
+                                    allowClear
+                                />
+                            </Form.Item>
+                        </Col>
+
+                        <Col span={12}>
+                            <Form.Item
+                                name="closeTime"
+                                label={
+                                    <span style={{ fontWeight: 600, color: '#262626' }}>
+                                        <ClockCircleOutlined style={{ marginRight: 4 }} />
+                                        Giờ đóng cửa
+                                    </span>
+                                }
+                                dependencies={['openTime']}
+                                rules={[
+                                    ({ getFieldValue }) => ({
+                                        validator(_, value) {
+                                            const openTime = getFieldValue('openTime');
+                                            if (!value || !openTime) {
+                                                return Promise.resolve();
+                                            }
+                                            if (value.isAfter(openTime)) {
+                                                return Promise.resolve();
+                                            }
+                                            return Promise.reject(new Error('Giờ đóng cửa phải sau giờ mở cửa!'));
+                                        },
+                                    }),
+                                ]}
+                            >
+                                <TimePicker
+                                    placeholder="Chọn giờ đóng cửa"
+                                    style={{ width: '100%', fontSize: '14px' }}
+                                    format="HH:mm"
+                                    allowClear
                                 />
                             </Form.Item>
                         </Col>
@@ -466,34 +506,15 @@ const EditMyHospital = ({ visible, onCancel, onSuccess, hospital }) => {
                         padding: '12px 16px',
                         marginTop: '16px'
                     }}>
-                        <p style={{ 
-                            margin: 0, 
+                        <p style={{
+                            margin: 0,
                             fontSize: '13px',
                             color: '#0050b3'
                         }}>
-                            💡 <strong>Lưu ý:</strong> Chỉ có thể chỉnh sửa thông tin cơ bản. 
-                            Các thông tin khác như chuyên khoa, dịch vụ, v.v. cần liên hệ quản trị viên.
+                            💡 <strong>Lưu ý:</strong> Tất cả các trường đều tùy chọn.
+                            Chỉ những trường được điền/thay đổi sẽ được cập nhật, các trường trống sẽ giữ nguyên giá trị cũ.
                         </p>
                     </div>
-
-                    {/* ✅ Debug info (remove in production) */}
-                    {process.env.NODE_ENV === 'development' && (
-                        <div style={{
-                            background: "#f0f0f0",
-                            padding: 12,
-                            borderRadius: 6,
-                            fontSize: '12px',
-                            marginTop: 16
-                        }}>
-                            <strong>🔍 Debug Info:</strong><br />
-                            Provinces loaded: {provinces.length}<br />
-                            Selected province: {selectedProvince || "None"}<br />
-                            Available wards: {wards.length}<br />
-                            Loading provinces: {loadingProvinces ? "Yes" : "No"}<br />
-                            Loading wards: {loadingWards ? "Yes" : "No"}<br />
-                            Hospital ID: {hospital?.id || "N/A"}
-                        </div>
-                    )}
                 </Form>
             </Spin>
         </Modal>

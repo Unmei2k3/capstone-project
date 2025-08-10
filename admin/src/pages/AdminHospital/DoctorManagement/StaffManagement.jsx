@@ -36,7 +36,8 @@ import { setMessage } from '../../../redux/slices/messageSlice';
 import {
     deleteDoctor,
     updateDoctorStatus,
-    getAllDoctors
+    getAllDoctors,
+    getDoctorByUserId
 } from '../../../services/doctorService';
 
 import AddStaff from './AddStaff';
@@ -44,6 +45,8 @@ import EditStaff from './EditStaff';
 import ViewStaff from './ViewStaff';
 import DeleteStaff from './DeleteStaff';
 import { getStaffNurseByHospitalId } from '../../../services/staffNurseService';
+import AddNurse from './AddNurse';
+import { deleteUser, getUserById } from '../../../services/userService';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -52,6 +55,8 @@ const { TabPane } = Tabs;
 
 const StaffManagementPage = () => {
     const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+    const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+    const [staffToDelete, setStaffToDelete] = useState(null);
     const [activeTab, setActiveTab] = useState('all');
     const [staff, setStaff] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -59,6 +64,7 @@ const StaffManagementPage = () => {
     const [departmentFilter, setDepartmentFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
     const [specializationFilter, setSpecializationFilter] = useState('all');
+    const [addingStaffType, setAddingStaffType] = useState('doctor');
     const [pagination, setPagination] = useState({
         current: 1,
         pageSize: 10,
@@ -85,7 +91,7 @@ const StaffManagementPage = () => {
 
     // ✅ Get user from Redux store
     const user = useSelector((state) => state.user?.user);
-    
+
     // ✅ Extract hospitalId when user data is available
     useEffect(() => {
         if (user && user.hospitals && user.hospitals.length > 0) {
@@ -126,6 +132,8 @@ const StaffManagementPage = () => {
         'Operating Room',
         'Recovery'
     ];
+
+
 
     // ✅ Simplified fetchStaff without any fallback/callback logic
     const fetchStaff = async () => {
@@ -207,7 +215,7 @@ const StaffManagementPage = () => {
                 nurses = nurseResponse.map((nurse, index) => {
                     const nurseUser = nurse || {};
                     console.log(`👩‍⚕️ Processing nurse ${index + 1}:`, nurseUser);
-                    
+
                     return {
                         id: nurse.id || nurseUser.id || `nurse-${index}`,
                         type: 'nurse',
@@ -376,22 +384,160 @@ const StaffManagementPage = () => {
         return dept ? dept.name : 'Unknown Department';
     };
 
-    const handleView = (staffMember) => {
+
+    const handleViewDetails = async (staffMember) => {
         console.log('👁️ Viewing staff:', staffMember);
-        setSelectedStaff({ id: staffMember.id });
-        setViewModalVisible(true);
+        console.log('🔍 Staff type:', staffMember.type);
+
+        try {
+            let staffData;
+
+            if (staffMember.type === 'doctor') {
+                console.log('👨‍⚕️ Fetching doctor details via getDoctorById...');
+                staffData = await getDoctorByUserId(staffMember.id);
+            } else if (staffMember.type === 'nurse') {
+                console.log('👩‍⚕️ Fetching nurse details via getUserById...');
+                staffData = await getUserById(staffMember.id);
+            } else {
+                // Fallback for unknown type
+                console.log('👤 Unknown type, using getUserById...');
+                staffData = await getUserById(staffMember.id);
+            }
+
+            console.log('✅ Fetched staff details:', staffData);
+
+            // Set the detailed data for viewing
+            setSelectedViewStaff({
+                ...staffMember,
+                detailedData: staffData,
+                apiSource: staffMember.type === 'doctor' ? 'getDoctorById' : 'getUserById'
+            });
+            setViewModalVisible(true);
+
+        } catch (error) {
+            console.error('❌ Error fetching staff details:', error);
+            dispatch(setMessage({
+                type: 'error',
+                content: `Failed to load ${staffMember.type} details`,
+                duration: 4
+            }));
+
+            // Show modal with existing data as fallback
+            setSelectedViewStaff(staffMember);
+            setViewModalVisible(true);
+        }
     };
 
-    const handleEdit = (staffMember) => {
+    const handleEditStaff = (staffMember) => {
         console.log('✏️ Editing staff:', staffMember);
-        setSelectedStaff(staffMember);
+        console.log('🔍 Staff type:', staffMember.type);
+
+        // Add type info for the edit modal to know which service to use
+        setSelectedStaff({
+            ...staffMember,
+            editApiType: staffMember.type === 'doctor' ? 'updateDoctor' : 'updateUser'
+        });
         setEditModalVisible(true);
     };
 
+    const handleDeleteStaff = async (staffMember) => {
+        console.log('🗑️ Deleting staff:', staffMember);
+        console.log('🔍 Staff type:', staffMember.type);
+
+        try {
+            let deleteResponse;
+            let apiUsed;
+
+            if (staffMember.type === 'doctor') {
+                console.log('👨‍⚕️ Deleting doctor via deleteDoctor...');
+                deleteResponse = await deleteDoctor(staffMember.id);
+                apiUsed = 'deleteDoctor';
+            } else if (staffMember.type === 'nurse') {
+                console.log('👩‍⚕️ Deleting nurse via deleteUser...');
+                deleteResponse = await deleteUser(staffMember.id);
+                apiUsed = 'deleteUser';
+            } else {
+                console.log('👤 Unknown type, using deleteUser...');
+                deleteResponse = await deleteUser(staffMember.id);
+                apiUsed = 'deleteUser';
+            }
+
+            console.log(`✅ ${apiUsed} response:`, deleteResponse);
+
+            // Check if deletion was successful
+            const isSuccess = deleteResponse === true ||
+                deleteResponse?.success === true ||
+                deleteResponse?.message?.toLowerCase().includes('success') ||
+                !deleteResponse?.error;
+
+            if (isSuccess) {
+                dispatch(setMessage({
+                    type: 'success',
+                    content: `${staffMember.type === 'doctor' ? 'Bác sĩ' : 'Y tá'} đã được xóa thành công!`,
+                    duration: 4
+                }));
+                await fetchStaff(); // Refresh the staff list
+                return Promise.resolve();
+            } else {
+                throw new Error(deleteResponse?.message || `Failed to delete ${staffMember.type}`);
+            }
+
+        } catch (error) {
+            console.error(`❌ Error deleting ${staffMember.type}:`, error);
+
+            let errorMessage = `Không thể xóa ${staffMember.type}`;
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            dispatch(setMessage({
+                type: 'error',
+                content: errorMessage,
+                duration: 4
+            }));
+            return Promise.reject(error);
+        }
+    };
+
+    const showDeleteConfirm = (staffMember) => {
+        console.log('🚨 showDeleteConfirm called with:', staffMember);
+        setStaffToDelete(staffMember);
+        setDeleteConfirmVisible(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!staffToDelete) return;
+
+        console.log('🆗 Delete confirmed, calling handleDeleteStaff...');
+        try {
+            setDeleteConfirmVisible(false);
+            await handleDeleteStaff(staffToDelete);
+            console.log('✅ Delete completed successfully');
+        } catch (error) {
+            console.error('❌ Delete failed:', error);
+        } finally {
+            setStaffToDelete(null);
+        }
+    };
+
+    const handleCancelDelete = () => {
+        console.log('❌ Delete cancelled');
+        setDeleteConfirmVisible(false);
+        setStaffToDelete(null);
+    };
+
+    // const handleView = (staffMember) => {
+    //     handleViewDetails(staffMember);
+    // };
+
+    // const handleEdit = (staffMember) => {
+    //     handleEditStaff(staffMember);
+    // };
+
     const handleDelete = (staffMember) => {
-        console.log('🗑️ Delete action triggered for:', staffMember);
-        setSelectedStaff(staffMember);
-        setDeleteModalVisible(true);
+        showDeleteConfirm(staffMember);
     };
 
     const handleDeleteSuccess = async () => {
@@ -549,32 +695,58 @@ const StaffManagementPage = () => {
             title: 'Actions',
             key: 'actions',
             width: 150,
-            render: (_, staffMember) => (
-                <Space size="small">
-                    <Tooltip title="View Details">
-                        <Button
-                            type="text"
-                            icon={<EyeOutlined />}
-                            onClick={() => handleView(staffMember)}
-                        />
-                    </Tooltip>
-                    <Tooltip title="Edit">
-                        <Button
-                            type="text"
-                            icon={<EditOutlined />}
-                            onClick={() => handleEdit(staffMember)}
-                        />
-                    </Tooltip>
-                    <Tooltip title="Delete">
-                        <Button
-                            type="text"
-                            danger
-                            icon={<DeleteOutlined />}
-                            onClick={() => handleDelete(staffMember)}
-                        />
-                    </Tooltip>
-                </Space>
-            ),
+            render: (_, staffMember) => {
+                // ✅ Determine action tooltips based on type
+                const viewTooltip = staffMember.type === 'doctor'
+                    ? 'View Doctor (getDoctorById)'
+                    : 'View Nurse (getUserById)';
+
+                const editTooltip = staffMember.type === 'doctor'
+                    ? 'Edit Doctor (updateDoctor)'
+                    : 'Edit Nurse (updateUser)';
+
+                const deleteTooltip = staffMember.type === 'doctor'
+                    ? 'Delete Doctor (deleteDoctor)'
+                    : 'Delete Nurse (deleteUser)';
+
+                return (
+                    <Space size="small">
+                        <Tooltip title={viewTooltip}>
+                            <Button
+                                type="text"
+                                icon={<EyeOutlined />}
+                                onClick={() => handleViewDetails(staffMember)} // ✅ Type-aware function
+                                style={{
+                                    color: staffMember.type === 'doctor' ? '#1890ff' : '#52c41a'
+                                }}
+                            />
+                        </Tooltip>
+
+                        <Tooltip title={editTooltip}>
+                            <Button
+                                type="text"
+                                icon={<EditOutlined />}
+                                onClick={() => handleEditStaff(staffMember)} // ✅ Type-aware function
+                                style={{
+                                    color: staffMember.type === 'doctor' ? '#1890ff' : '#52c41a'
+                                }}
+                            />
+                        </Tooltip>
+
+                        <Tooltip title={deleteTooltip}>
+                            <Button
+                                type="text"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={() => {
+                                    console.log('🔥 Delete button clicked for:', staffMember);
+                                    showDeleteConfirm(staffMember);
+                                }}
+                            />
+                        </Tooltip>
+                    </Space>
+                );
+            },
         },
     ];
 
@@ -603,9 +775,11 @@ const StaffManagementPage = () => {
     };
 
     const handleAddStaff = (type) => {
-        setStaffType(type);
+        console.log('🔧 Adding staff of type:', type);
+        setAddingStaffType(type); // ✅ Set type for adding
         setAddModalVisible(true);
     };
+
 
     return (
         <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
@@ -718,21 +892,47 @@ const StaffManagementPage = () => {
                     <Space>
                         <Button
                             type="primary"
-                            icon={<UserAddOutlined />}
+                            icon={<PlusOutlined />}
                             onClick={() => handleAddStaff('doctor')}
                         >
-                            Add Doctor
+                            Thêm Bác sĩ
                         </Button>
                         <Button
                             type="primary"
-                            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
                             icon={<UserAddOutlined />}
                             onClick={() => handleAddStaff('nurse')}
+                            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
                         >
-                            Add Nurse
+                            Thêm Y tá
                         </Button>
                     </Space>
                 </div>
+
+                {/* Add Staff Modals */}
+                {addModalVisible && (
+                    addingStaffType === 'doctor' ? (
+                        <AddStaff
+                            visible={addModalVisible}
+                            onCancel={() => setAddModalVisible(false)}
+                            onSuccess={() => {
+                                setAddModalVisible(false);
+                                fetchStaff();
+                            }}
+                            staffType={addingStaffType}
+                            departments={departments}
+                            specializations={specializations}
+                        />
+                    ) : (
+                        <AddNurse
+                            visible={addModalVisible}
+                            onCancel={() => setAddModalVisible(false)}
+                            onSuccess={() => {
+                                setAddModalVisible(false);
+                                fetchStaff();
+                            }}
+                        />
+                    )
+                )}
 
                 <Tabs
                     activeKey={activeTab}
@@ -785,40 +985,90 @@ const StaffManagementPage = () => {
                 />
             </Card>
 
-            <AddStaff
-                visible={addModalVisible}
-                onCancel={() => setAddModalVisible(false)}
-                onSuccess={() => {
-                    setAddModalVisible(false);
-                    fetchStaff();
-                }}
-                staffType={staffType}
-                departments={departments}
-                specializations={specializations}
-            />
-
-            <EditStaff
-                visible={editModalVisible}
-                onCancel={() => setEditModalVisible(false)}
-                onSuccess={() => {
-                    setEditModalVisible(false);
-                    fetchStaff();
-                }}
-                staff={selectedStaff}
-                departments={departments}
-                specializations={specializations}
-            />
-
-            {viewModalVisible && selectedStaff && (
-                <ViewStaff
-                    visible={viewModalVisible}
-                    onCancel={() => {
-                        setViewModalVisible(false);
-                        setSelectedStaff(null);
+            {/* Edit Staff Modal - Unified for both Doctor and Nurse */}
+            {editModalVisible && selectedStaff && (
+                <EditStaff
+                    visible={editModalVisible}
+                    onCancel={() => setEditModalVisible(false)}
+                    onSuccess={() => {
+                        setEditModalVisible(false);
+                        fetchStaff();
                     }}
                     staff={selectedStaff}
+                    departments={departments}
+                    specializations={specializations}
                 />
             )}
+
+            {viewModalVisible && selectedViewStaff && (
+                selectedViewStaff.type === 'doctor' ? (
+                    <ViewStaff
+                        visible={viewModalVisible}
+                        onCancel={() => {
+                            setViewModalVisible(false);
+                            setSelectedViewStaff(null);
+                        }}
+                        staff={selectedViewStaff}
+                        apiSource={selectedViewStaff?.apiSource}
+                        detailedData={selectedViewStaff?.detailedData}
+                        staffType="doctor" // ✅ Pass explicit type
+                    />
+                ) : (
+                    <ViewStaff  // ✅ Có thể tạo ViewNurse component riêng hoặc dùng ViewStaff
+                        visible={viewModalVisible}
+                        onCancel={() => {
+                            setViewModalVisible(false);
+                            setSelectedViewStaff(null);
+                        }}
+                        staff={selectedViewStaff}
+                        apiSource={selectedViewStaff?.apiSource}
+                        detailedData={selectedViewStaff?.detailedData}
+                        staffType="nurse" // ✅ Pass explicit type
+                    />
+                )
+            )}
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+                title={
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <DeleteOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
+                        Xóa {staffToDelete?.type === 'doctor' ? 'Bác sĩ' : 'Y tá'}
+                    </div>
+                }
+                open={deleteConfirmVisible}
+                onOk={handleConfirmDelete}
+                onCancel={handleCancelDelete}
+                okText={`Có, xóa ${staffToDelete?.type === 'doctor' ? 'Bác sĩ' : 'Y tá'}`}
+                cancelText="Hủy"
+                okButtonProps={{
+                    danger: true,
+                    type: 'primary'
+                }}
+                width={500}
+            >
+                {staffToDelete && (
+                    <div>
+                        <p>Bạn có chắc chắn muốn xóa <strong>{staffToDelete.name}</strong>?</p>
+                        <div style={{
+                            background: '#f5f5f5',
+                            padding: '12px 16px',
+                            borderRadius: '6px',
+                            fontSize: '13px',
+                            color: '#666',
+                            marginTop: 16
+                        }}>
+                            <div><strong>Loại:</strong> {staffToDelete.type === 'doctor' ? 'Bác sĩ' : 'Y tá'}</div>
+                            <div><strong>Email:</strong> {staffToDelete.email}</div>
+                            <div><strong>API:</strong> {staffToDelete.type === 'doctor' ? 'deleteDoctor' : 'deleteUser'}</div>
+                            <div><strong>Service:</strong> {staffToDelete.type === 'doctor' ? 'doctorService' : 'userService'}</div>
+                            <div style={{ color: '#ff4d4f', marginTop: 8, fontWeight: 500 }}>
+                                ⚠️ Hành động này không thể hoàn tác.
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </Modal>
 
             <DeleteStaff
                 visible={deleteModalVisible}

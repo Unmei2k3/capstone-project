@@ -38,14 +38,15 @@ import StaffManagementPage from "../../pages/AdminHospital/DoctorManagement/Staf
 import PaymentSuccess from "../../pages/Payment/PaymentSuccess";
 import PaymentCancelled from "../../pages/Payment/PaymentCancelled";
 import { DOCTOR, HOSPITALADMIN, HOSPITALSTAFF, NURSE, SYSTEMADMIN } from "../roles/role";
+import MyHospital from "../../pages/AdminHospital/HospitalDetail/HospitalDetail";
 
 export const routes = [
   {
     path: "/",
     element: <BlankLayout />,
     children: [
-      { index: true, element: <Login /> },
-      { path: "login", element: <Login /> },
+      { index: true, element: <Login /> }, // đã vẽ
+      { path: "login", element: <Login /> }, // đã vẽ
       { path: "/payment/success", element: <PaymentSuccess /> },
       { path: "/payment/cancelled", element: <PaymentCancelled /> },
       { path: "/payment/cancel", element: <PaymentCancelled /> },
@@ -54,7 +55,7 @@ export const routes = [
   {
     path: "/unauthorized",
     children: [
-      { index: true, element: <ErrorPage /> },
+      { index: true, element: <ErrorPage /> }, // đã vẽ
     ],
   },
   {
@@ -68,15 +69,19 @@ export const routes = [
       { index: true, element: <AdminHospitalHome /> },
       { path: "users", element: <UserManagement /> },
       { path: "staff-management", element: <StaffManagementPage /> },
-      { path: "doctor-shift-management", element: <AdminDoctorShiftManagement /> },
-      { path: "staff-shift-management", element: <StaffShiftManagement /> },
-      { path: "room-management", element: <ManageRoom /> },
-      { path: "specialist-management", element: <ManageSpecialist /> },
+      { path: "doctor-shift-management", element: <AdminDoctorShiftManagement /> }, // đã vẽ
+      { path: "staff-shift-management", element: <StaffShiftManagement /> }, // đã vẽ
+      { path: "room-management", element: <ManageRoom /> }, // đã vẽ
+      { path: "specialist-management", element: <ManageSpecialist /> },  // đã vẽ
       { path: "departments", element: <DepartmentManagement /> },
-      { path: "medical-service-management", element: <MedicalServiceManagement /> },
-      { path: "leave-request-management", element: <LeaveRequestManagement /> },
+      { path: "medical-service-management", element: <MedicalServiceManagement /> },  // đã vẽ
+      { path: "leave-request-management", element: <LeaveRequestManagement /> }, // đã vẽ
       { path: "hospital-statistic", element: <HospitalStatisticPage /> },
       { path: "payment-list", element: <NurseUnpaidBookingList /> },
+      {
+        path: "hospital-detail",
+        element: <MyHospital />,
+      },
     ],
   },
   {
@@ -88,9 +93,9 @@ export const routes = [
     ),
     children: [
       { index: true, element: <DoctorHome /> },
-      { path: "work-schedule", element: <WorkSchedule /> },
-      { path: "profile", element: <DoctorProfile /> },
-      { path: "request-leave", element: <DoctorRequestLeave /> },
+      { path: "work-schedule", element: <WorkSchedule /> }, // đã vẽ
+      { path: "profile", element: <DoctorProfile /> }, // đã vẽ
+      { path: "request-leave", element: <DoctorRequestLeave /> }, // đã vẽ
     ],
   },
   {
@@ -118,11 +123,11 @@ export const routes = [
     children: [
       { index: true, element: <NurseHome /> },
       { path: "appointment", element: <AppointmentOverview /> },
-      { path: "nurse-profile", element: <NurseProfile /> },
-      { path: "work-schedule", element: <WorkScheduleNurse /> },
-      { path: "adjust-appointment-schedule", element: <AdjustBookingSchedule /> },
+      { path: "nurse-profile", element: <NurseProfile /> }, // đã vẽ
+      { path: "work-schedule", element: <WorkScheduleNurse /> }, // đã vẽ
+      { path: "adjust-appointment-schedule", element: <AdjustBookingSchedule /> }, // đã vẽ
       { path: "payment-confirm/:id", element: <NursePaymentConfirmation /> },
-      { path: "payment-list", element: <NurseUnpaidBookingList /> },
+      { path: "payment-list", element: <NurseUnpaidBookingList /> }, // đã vẽ
       { path: "request-leave", element: <DoctorRequestLeave /> },
     ],
   },

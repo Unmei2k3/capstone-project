@@ -267,7 +267,7 @@ function StaffProfile() {
                     label="Email"
                     rules={[{ type: "email", message: "Email không hợp lệ!" }]}
                   >
-                    <Input prefix={<MailOutlined />} size="large" />
+                    <Input prefix={<MailOutlined />} size="large" disabled/>
                   </Form.Item>
                 </Col>
               </Row>

@@ -63,6 +63,12 @@ function MenuSider() {
             icon: <TeamOutlined />,
         },
         {
+            key: 'hospital-detail',
+            icon: <BankOutlined />,
+            label: <Link to="/admin-hospital/hospital-detail">Bệnh viện của tôi</Link>,
+            
+        },
+        {
             key: "department-room",
             label: <Link to="/admin-hospital/room-management">Phòng khám</Link>,
             icon: <ApartmentOutlined />,

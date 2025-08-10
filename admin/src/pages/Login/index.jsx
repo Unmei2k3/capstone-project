@@ -131,9 +131,12 @@ function Login() {
                     marginRight: 0,
                     zIndex: 2,
                     background: "rgba(255,255,255,0.97)",
+                    justifyContent: "center",    
+                    alignItems: "center",
+                    
                 }}
             >
-                <div style={{ textAlign: "center", marginBottom: 24 }}>
+                <div style={{ textAlign: "center", marginTop: 45 }}>
 
                     <Title level={2} style={{ color: "#1890ff", margin: 0 }}>
                         Đăng nhập DABS
@@ -189,11 +192,7 @@ function Login() {
                             Đăng nhập
                         </Button>
                     </Form.Item>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 40 }}>
-                        <Link to="/login/forget-password" style={{ color: "#1890ff" }}>Quên mật khẩu?</Link>
-                        <Link to="/login/register" style={{ color: "#1890ff" }}>Đăng ký</Link>
 
-                    </div>
                 </Form>
 
             </Card></>
