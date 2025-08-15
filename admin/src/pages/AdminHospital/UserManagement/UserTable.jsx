@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
-import { Table, Button, Space, Tag, Tooltip, Avatar } from 'antd';
+import { Table, Button, Space, Tag, Tooltip, Avatar, message } from 'antd';
 import { EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined } from '@ant-design/icons';
 import EditUser from './EditUser';
 import DeleteUser from './DeleteUser';
 import ViewUser from './ViewUser';
+
 const UserTable = ({ users, loading, pagination, onChange, onReload }) => {
     const [editingUser, setEditingUser] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [userToDelete, setUserToDelete] = useState(null);
-
     const [showViewModal, setShowViewModal] = useState(false);
     const [viewingUser, setViewingUser] = useState(null);
+    const [actionLoading, setActionLoading] = useState(false);
 
     const handleEdit = (record) => {
         setEditingUser(record);
@@ -23,9 +24,34 @@ const UserTable = ({ users, loading, pagination, onChange, onReload }) => {
         setShowDeleteModal(true);
     };
 
-    const handleEditSuccess = () => {
-        setShowEditModal(false);
-        onReload();
+    // ✅ Enhanced edit success handler với loading state
+    const handleEditSuccess = async (response, options = {}) => {
+        try {
+            setActionLoading(true);
+
+            console.log('✅ User edit success:', response, options);
+
+            // ✅ Show success message
+            message.success(`Cập nhật thông tin "${editingUser?.fullname || 'người dùng'}" thành công!`);
+
+            // ✅ Close modal
+            setShowEditModal(false);
+            setEditingUser(null);
+
+            // ✅ Auto reload user list nếu có flag hoặc mặc định reload
+            if (options.shouldReload !== false && onReload && typeof onReload === 'function') {
+                console.log('🔄 Auto reloading user list after edit...');
+
+                // ✅ Delay để user thấy success message trước khi reload
+                setTimeout(() => {
+                    onReload();
+                }, 300);
+            }
+        } catch (error) {
+            console.error('❌ Error handling edit success:', error);
+        } finally {
+            setTimeout(() => setActionLoading(false), 500);
+        }
     };
 
     const handleView = (record) => {
@@ -33,9 +59,50 @@ const UserTable = ({ users, loading, pagination, onChange, onReload }) => {
         setShowViewModal(true);
     };
 
-    const handleDeleteSuccess = () => {
+    // ✅ Enhanced delete success handler với loading state
+    const handleDeleteSuccess = async (response, options = {}) => {
+        try {
+            setActionLoading(true);
+
+            console.log('✅ User delete success:', response, options);
+
+            // ✅ Show success message
+            message.success(`Đã xóa người dùng "${userToDelete?.fullname || 'người dùng'}" thành công!`);
+
+            // ✅ Close modal
+            setShowDeleteModal(false);
+            setUserToDelete(null);
+
+            // ✅ Auto reload user list nếu có flag hoặc mặc định reload
+            if (options.shouldReload !== false && onReload && typeof onReload === 'function') {
+                console.log('🔄 Auto reloading user list after delete...');
+
+                // ✅ Delay để user thấy success message trước khi reload
+                setTimeout(() => {
+                    onReload();
+                }, 300);
+            }
+        } catch (error) {
+            console.error('❌ Error handling delete success:', error);
+        } finally {
+            setTimeout(() => setActionLoading(false), 500);
+        }
+    };
+
+    // ✅ Handle modal cancel với cleanup
+    const handleEditCancel = () => {
+        setShowEditModal(false);
+        setEditingUser(null);
+    };
+
+    const handleDeleteCancel = () => {
         setShowDeleteModal(false);
-        onReload();
+        setUserToDelete(null);
+    };
+
+    const handleViewCancel = () => {
+        setShowViewModal(false);
+        setViewingUser(null);
     };
 
     const getStatusColor = (active) => {
@@ -53,15 +120,24 @@ const UserTable = ({ users, loading, pagination, onChange, onReload }) => {
         }
     };
 
+    // ✅ Chuyển đổi role sang tiếng Việt
+    const getRoleDisplayName = (roleType) => {
+        switch (roleType) {
+            case 1: return 'Người dùng';
+            case 2: return 'Bác sĩ';
+            case 4: return 'Quản trị viên BV';
+            case 5: return 'Quản trị hệ thống';
+            case 6: return 'Bệnh nhân';
+            case 7: return 'Y tá';
+            default: return 'Không xác định';
+        }
+    };
 
     // Extract role from username if not provided directly
     const getUserRole = (user) => {
         if (!user.role) return 'user';
 
         const roleType = user.role.roleType;
-        const roleName = user.role.name;
-
-
 
         // Option 1: Map by roleType
         switch (roleType) {
@@ -72,102 +148,167 @@ const UserTable = ({ users, loading, pagination, onChange, onReload }) => {
             case 7: return 'nurse';
             default: return 'user';
         }
-
-        // Option 2: Return name directly
-        // return roleName;
     };
 
     const columns = [
         {
-            title: 'User',
+            title: 'Người dùng',
             key: 'user',
+            width: 250,
             render: (_, record) => (
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                     <Avatar
                         icon={<UserOutlined />}
-                        style={{ marginRight: 12, backgroundColor: '#1890ff' }}
+                        style={{
+                            marginRight: 12,
+                            backgroundColor: '#1890ff',
+                            flexShrink: 0
+                        }}
                         src={record.avatarUrl}
+                        size="default"
                     />
-                    <div>
-                        <div style={{ fontWeight: 500 }}>{record.fullname}</div>
-                        <div style={{ fontSize: '12px', color: '#8c8c8c' }}>{record.email}</div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{
+                            fontWeight: 500,
+                            fontSize: '14px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                        }}>
+                            {record.fullname || record.fullName || 'Không rõ'}
+                        </div>
+                        <div style={{
+                            fontSize: '12px',
+                            color: '#8c8c8c',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                        }}>
+                            {record.email || 'Chưa có email'}
+                        </div>
                     </div>
                 </div>
             ),
         },
         {
-            title: 'Username',
+            title: 'Tên đăng nhập',
             dataIndex: 'userName',
             key: 'userName',
+            width: 150,
+            render: (text) => (
+                <span style={{ fontSize: '13px' }}>
+                    {text || 'Chưa có'}
+                </span>
+            ),
         },
         {
-            title: 'Phone',
+            title: 'Số điện thoại',
             dataIndex: 'phoneNumber',
             key: 'phoneNumber',
+            width: 130,
+            render: (text) => (
+                <span style={{ fontSize: '13px' }}>
+                    {text || 'Chưa có'}
+                </span>
+            ),
         },
         {
-            title: 'Role',
+            title: 'Vai trò',
             key: 'role',
+            width: 150,
             render: (_, record) => {
                 const role = getUserRole(record);
+                const roleType = record.role?.roleType || record.roleType;
+                const displayName = getRoleDisplayName(roleType);
+
                 return (
                     <Tag color={getRoleColor(role)} className="user-role-tag">
-                        {role?.toUpperCase() || 'USER'}
+                        {displayName}
                     </Tag>
                 );
             },
         },
         {
-            title: 'Status',
+            title: 'Bệnh viện',
+            key: 'hospital',
+            width: 180,
+            render: (_, record) => (
+                <span style={{
+                    fontSize: '12px',
+                    color: record.hospitalName ? '#333' : '#999'
+                }}>
+                    {record.hospitalName || 'Chưa phân công'}
+                </span>
+            ),
+        },
+        {
+            title: 'Trạng thái',
             key: 'status',
+            width: 120,
             render: (_, record) => (
                 <Tag color={getStatusColor(record.active)} className="user-status-tag">
-                    {record.active ? 'ACTIVE' : 'INACTIVE'}
+                    {record.active ? 'HOẠT ĐỘNG' : 'TẠM KHÓA'}
                 </Tag>
             ),
         },
         {
-            title: 'Verification',
+            title: 'Xác thực',
             key: 'verification',
+            width: 130,
             render: (_, record) => (
-                <>
-                    <Tag color={record.isVerifiedEmail ? 'green' : 'orange'} style={{ marginRight: 4 }}>
-                        {record.isVerifiedEmail ? 'Email verified' : 'Email unverified'}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <Tag
+                        color={record.isVerifiedEmail ? 'green' : 'orange'}
+                        style={{ margin: 0, fontSize: '10px', padding: '1px 6px' }}
+                    >
+                        {record.isVerifiedEmail ? '✓ Email' : '⏳ Email'}
                     </Tag>
                     {record.phoneNumber && (
-                        <Tag color={record.isVerifiedPhone ? 'green' : 'orange'}>
-                            {record.isVerifiedPhone ? 'Phone verified' : 'Phone unverified'}
+                        <Tag
+                            color={record.isVerifiedPhone ? 'green' : 'orange'}
+                            style={{ margin: 0, fontSize: '10px', padding: '1px 6px' }}
+                        >
+                            {record.isVerifiedPhone ? '✓ SĐT' : '⏳ SĐT'}
                         </Tag>
                     )}
-                </>
+                </div>
             ),
         },
         {
-            title: 'Actions',
+            title: 'Thao tác',
             key: 'actions',
-            width: 150,
+            width: 120,
+            fixed: 'right',
             render: (_, record) => (
                 <Space size="small">
-                    <Tooltip title="View Details">
+                    <Tooltip title="Xem chi tiết">
                         <Button
                             type="text"
                             icon={<EyeOutlined />}
                             onClick={() => handleView(record)}
+                            style={{ color: '#1890ff' }}
+                            size="small"
+                            disabled={actionLoading}
                         />
                     </Tooltip>
-                    <Tooltip title="Edit">
+                    <Tooltip title="Chỉnh sửa">
                         <Button
                             type="text"
                             icon={<EditOutlined />}
                             onClick={() => handleEdit(record)}
+                            style={{ color: '#52c41a' }}
+                            size="small"
+                            disabled={actionLoading}
                         />
                     </Tooltip>
-                    <Tooltip title="Delete">
+                    <Tooltip title="Xóa">
                         <Button
                             type="text"
                             danger
                             icon={<DeleteOutlined />}
                             onClick={() => handleDelete(record)}
+                            size="small"
+                            disabled={actionLoading}
                         />
                     </Tooltip>
                 </Space>
@@ -181,36 +322,70 @@ const UserTable = ({ users, loading, pagination, onChange, onReload }) => {
                 columns={columns}
                 dataSource={users}
                 rowKey="id"
-                pagination={pagination}
-                loading={loading}
+                pagination={{
+                    ...pagination,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total, range) =>
+                        `${range[0]}-${range[1]} của ${total} người dùng`,
+                    pageSizeOptions: ['10', '20', '50', '100'],
+                    size: 'default'
+                }}
+                loading={loading || actionLoading ? {
+                    tip: actionLoading ? 'Đang xử lý...' : 'Đang tải dữ liệu...'
+                } : false}
                 onChange={onChange}
                 bordered={false}
                 size="middle"
+                locale={{
+                    emptyText: (
+                        <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                            <UserOutlined style={{ fontSize: '48px', color: '#d9d9d9', marginBottom: '16px' }} />
+                            <div style={{ color: '#999', fontSize: '16px', marginBottom: '8px' }}>
+                                Không có dữ liệu người dùng
+                            </div>
+                            <div style={{ color: '#ccc', fontSize: '12px' }}>
+                                Hãy thử thêm người dùng mới hoặc thay đổi bộ lọc
+                            </div>
+                        </div>
+                    ),
+                    triggerDesc: 'Nhấn để sắp xếp giảm dần',
+                    triggerAsc: 'Nhấn để sắp xếp tăng dần',
+                    cancelSort: 'Nhấn để hủy sắp xếp',
+                }}
+                scroll={{ x: 1200 }}
+                className="custom-user-table"
             />
 
-            {showEditModal && (
+            {/* ✅ Edit Modal với enhanced props */}
+            {showEditModal && editingUser && (
                 <EditUser
                     visible={showEditModal}
                     record={editingUser}
-                    onCancel={() => setShowEditModal(false)}
+                    onCancel={handleEditCancel}
                     onSuccess={handleEditSuccess}
+                    key={`edit-${editingUser.id}`} // Force re-render when user changes
                 />
             )}
 
-            {showDeleteModal && (
+            {/* ✅ Delete Modal với enhanced props */}
+            {showDeleteModal && userToDelete && (
                 <DeleteUser
                     visible={showDeleteModal}
                     record={userToDelete}
-                    onCancel={() => setShowDeleteModal(false)}
+                    onCancel={handleDeleteCancel}
                     onSuccess={handleDeleteSuccess}
+                    key={`delete-${userToDelete.id}`} // Force re-render when user changes
                 />
             )}
 
-            {showViewModal && (
+            {/* ✅ View Modal với enhanced props */}
+            {showViewModal && viewingUser && (
                 <ViewUser
                     visible={showViewModal}
                     record={viewingUser}
-                    onCancel={() => setShowViewModal(false)}
+                    onCancel={handleViewCancel}
+                    key={`view-${viewingUser.id}`} // Force re-render when user changes
                 />
             )}
         </div>

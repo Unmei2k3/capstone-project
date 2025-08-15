@@ -1,63 +1,60 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Tabs, Button, Input, Row, Col, Card, Badge, Select } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Button, Input, Row, Col, Card, message } from 'antd';
 import { PlusOutlined, SearchOutlined, BankOutlined } from '@ant-design/icons';
+import { useDispatch, useSelector } from 'react-redux';
 import DepartmentTable from './DepartmentTable';
 import AddDepartment from './AddDepartment';
 import { getAllDepartments } from '../../../services/departmentService';
+import { clearMessage, setMessage } from '../../../redux/slices/messageSlice';
 import './DepartmentManage.scss';
-
-const { TabPane } = Tabs;
-const { Option } = Select;
 
 const DepartmentManagement = () => {
     const [departments, setDepartments] = useState([]);
-    const [allDepartments, setAllDepartments] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [searchText, setSearchText] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
     const [pagination, setPagination] = useState({
         current: 1,
         pageSize: 10,
         total: 0,
     });
-    const [counts, setCounts] = useState({
-        all: 0,
-        active: 0,
-        inactive: 0,
-    });
 
-    const fetchDepartments = async (page = 1, pageSize = 10, search = '', status = 'all') => {
-        console.log('DepartmentManagement: fetchDepartments called with:', { page, pageSize, search, status });
+    // Redux hooks
+    const [messageApi, contextHolder] = message.useMessage();
+    const messageState = useSelector((state) => state.message);
+    const dispatch = useDispatch();
 
+    // Handle Redux messages
+    useEffect(() => {
+        if (messageState) {
+            messageApi.open({
+                type: messageState.type,
+                content: messageState.content,
+            });
+            dispatch(clearMessage());
+        }
+    }, [messageState, messageApi, dispatch]);
+
+    const fetchDepartments = async (page = 1, pageSize = 10, search = '', showMessage = false) => {
         setLoading(true);
+
+
+
         try {
             const response = await getAllDepartments();
-            console.log('DepartmentManagement: getAllDepartments response:', response);
-
             let allData = [];
 
             // Handle different response formats
             if (Array.isArray(response)) {
                 allData = response;
-            } else if (response && response.items) {
+            } else if (response?.items) {
                 allData = response.items;
-            } else if (response && response.data) {
+            } else if (response?.data) {
                 allData = response.data;
             }
 
-            // Add default status if missing
-            allData = allData.map(dept => ({
-                ...dept,
-                status: dept.status || 'active'
-            }));
-
-            setAllDepartments(allData);
-
-            // Apply client-side filtering
-            let filteredData = allData;
-
             // Filter by search text
+            let filteredData = allData;
             if (search && search.trim() !== '') {
                 const searchLower = search.toLowerCase();
                 filteredData = filteredData.filter(dept =>
@@ -66,15 +63,9 @@ const DepartmentManagement = () => {
                 );
             }
 
-            // Filter by status
-            if (status && status !== 'all') {
-                filteredData = filteredData.filter(dept => dept.status === status);
-            }
-
-            // Apply client-side pagination
+            // Apply pagination
             const startIndex = (page - 1) * pageSize;
-            const endIndex = startIndex + pageSize;
-            const paginatedData = filteredData.slice(startIndex, endIndex);
+            const paginatedData = filteredData.slice(startIndex, startIndex + pageSize);
 
             setDepartments(paginatedData);
             setPagination({
@@ -83,229 +74,235 @@ const DepartmentManagement = () => {
                 total: filteredData.length,
             });
 
-            // Calculate counts
-            setCounts({
-                all: allData.length,
-                active: allData.filter(dept => dept.status === 'active').length,
-                inactive: allData.filter(dept => dept.status === 'inactive').length,
-            });
+
 
         } catch (error) {
-            console.error('Failed to fetch departments:', error);
+            console.error('Lỗi tải danh sách khoa:', error);
 
-            // Reset data on error
+            dispatch(setMessage({
+                type: 'error',
+                content: '❌ Không thể tải danh sách khoa. Vui lòng thử lại!'
+            }));
+
             setDepartments([]);
-            setAllDepartments([]);
-            setPagination({
-                current: 1,
-                pageSize: 10,
-                total: 0,
-            });
-            setCounts({
-                all: 0,
-                active: 0,
-                inactive: 0,
-            });
+            setPagination({ current: 1, pageSize: 10, total: 0 });
         } finally {
             setLoading(false);
         }
     };
 
-    // ✅ THÊM: useCallback để tối ưu performance
-    const debouncedFetchDepartments = useCallback(
-        debounce((search, status) => {
-            fetchDepartments(1, pagination.pageSize, search, status);
-        }, 300), // Delay 300ms
-        [pagination.pageSize]
-    );
-
-    // ✅ THÊM: useEffect để watch searchText changes
-    useEffect(() => {
-        if (allDepartments.length > 0) {
-            // Chỉ gọi khi đã có data và search text thay đổi
-            debouncedFetchDepartments(searchText, statusFilter);
-        }
-    }, [searchText, debouncedFetchDepartments, statusFilter, allDepartments.length]);
-
     // Initial data load
     useEffect(() => {
-        fetchDepartments(pagination.current, pagination.pageSize, searchText, statusFilter);
+        fetchDepartments();
     }, []);
 
     const handleTableChange = (paginationConfig) => {
-        fetchDepartments(paginationConfig.current, paginationConfig.pageSize, searchText, statusFilter);
+        fetchDepartments(paginationConfig.current, paginationConfig.pageSize, searchText);
     };
 
-    // ✅ SỬA: Không cần handleSearch nữa vì search tự động
     const handleSearch = () => {
-        // Function này giờ chỉ để tương thích, search đã tự động
-        fetchDepartments(1, pagination.pageSize, searchText, statusFilter);
+        fetchDepartments(1, pagination.pageSize, searchText, true);
     };
 
-    const handleStatusFilter = (value) => {
-        setStatusFilter(value);
-        fetchDepartments(1, pagination.pageSize, searchText, value);
-    };
-
-    // ✅ THÊM: Handle search input change
     const handleSearchChange = (e) => {
         const value = e.target.value;
         setSearchText(value);
-        // Reset về page 1 khi search
         setPagination(prev => ({ ...prev, current: 1 }));
+
+        // Auto search after user stops typing
+        clearTimeout(handleSearchChange.timeoutId);
+        handleSearchChange.timeoutId = setTimeout(() => {
+            fetchDepartments(1, pagination.pageSize, value);
+        }, 300);
     };
 
     const handleAddDepartment = () => {
         setShowAddModal(true);
+        dispatch(setMessage({
+            type: 'info',
+            content: '➕ Mở form thêm khoa mới'
+        }));
     };
 
-    const handleAddDepartmentSuccess = () => {
+    const handleAddDepartmentSuccess = (newDepartment) => {
         setShowAddModal(false);
-        fetchDepartments(pagination.current, pagination.pageSize, searchText, statusFilter);
+
+        dispatch(setMessage({
+            type: 'success',
+            content: `✅ Thêm khoa "${newDepartment?.name || 'mới'}" thành công!`
+        }));
+
+        // Reload data
+        fetchDepartments(pagination.current, pagination.pageSize, searchText, true);
     };
 
-    const getFilteredDepartments = (status) => {
-        if (status === 'all') return departments;
-        return allDepartments.filter(dept => dept.status === status);
+    const handleAddDepartmentCancel = () => {
+        setShowAddModal(false);
+        dispatch(setMessage({
+            type: 'info',
+            content: '🚫 Đã hủy thêm khoa mới'
+        }));
+    };
+
+    const handleEditDepartmentSuccess = (updatedDepartment) => {
+        dispatch(setMessage({
+            type: 'success',
+            content: `✅ Cập nhật khoa "${updatedDepartment?.name || ''}" thành công!`
+        }));
+
+        // Reload data
+        fetchDepartments(pagination.current, pagination.pageSize, searchText, true);
+    };
+
+    const handleDeleteDepartmentSuccess = (deletedDepartment) => {
+        dispatch(setMessage({
+            type: 'success',
+            content: `✅ Xóa khoa "${deletedDepartment?.name || ''}" thành công!`
+        }));
+
+        setTimeout(() => {
+            dispatch(setMessage({
+                type: 'warning',
+                content: '⚠️ Dữ liệu đã được xóa vĩnh viễn'
+            }));
+        }, 1000);
+
+        // Smart pagination adjustment
+        const newTotal = pagination.total - 1;
+        const newPage = Math.max(1, Math.ceil(newTotal / pagination.pageSize));
+        const targetPage = pagination.current > newPage ? newPage : pagination.current;
+
+        fetchDepartments(targetPage, pagination.pageSize, searchText, true);
+    };
+
+    const handleDepartmentError = (error, operation) => {
+        const operationMessages = {
+            add: 'Không thể thêm khoa mới',
+            edit: 'Không thể cập nhật khoa',
+            delete: 'Không thể xóa khoa'
+        };
+
+        dispatch(setMessage({
+            type: 'error',
+            content: `❌ ${operationMessages[operation]}. Vui lòng thử lại!`
+        }));
+    };
+
+    const handleRefresh = () => {
+        dispatch(setMessage({
+            type: 'info',
+            content: '🔄 Đang làm mới danh sách khoa...'
+        }));
+        fetchDepartments(pagination.current, pagination.pageSize, searchText, true);
     };
 
     return (
-        <div className="department-management-container">
-            <Row gutter={[0, 24]}>
-                <Col span={24}>
-                    <Row justify="space-between" align="middle">
-                        <Col>
-                            <h2>
-                                <BankOutlined style={{ marginRight: 12 }} />
-                                Department Management
-                            </h2>
-                        </Col>
-                        <Col>
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={handleAddDepartment}
-                                size="large"
-                            >
-                                Add Department
-                            </Button>
-                        </Col>
-                    </Row>
-                </Col>
+        <>
+            {contextHolder}
 
-                <Col span={24}>
-                    <Card>
-                        <Row className="actions-row" gutter={16}>
-                            <Col xs={24} sm={12} md={8} lg={6} className="search-container">
-                                <Input.Search
-                                    placeholder="Search departments..."
-                                    value={searchText}
-                                    onChange={handleSearchChange} // ✅ SỬA: Dùng handleSearchChange
-                                    onSearch={handleSearch} // Vẫn giữ để nhấn Enter hoạt động
-                                    enterButton={<SearchOutlined />}
-                                    allowClear
-                                    loading={loading} // ✅ THÊM: Hiển thị loading khi search
-                                />
+            <div className="department-management-container">
+                <Row gutter={[0, 24]}>
+                    <Col span={24}>
+                        <Row justify="space-between" align="middle">
+                            <Col>
+                                <h2 style={{
+                                    margin: 0,
+                                    fontSize: '24px',
+                                    fontWeight: 600,
+                                    color: '#262626',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}>
+                                    <BankOutlined style={{
+                                        marginRight: 12,
+                                        color: '#1890ff',
+                                        fontSize: '28px'
+                                    }} />
+                                    Quản lý khoa
+                                </h2>
                             </Col>
-                            <Col xs={24} sm={12} md={6} lg={4}>
-                                <Select
-                                    value={statusFilter}
-                                    onChange={handleStatusFilter}
-                                    style={{ width: '100%' }}
-                                    placeholder="Filter by status"
+                            <Col>
+                                <Button
+                                    type="primary"
+                                    icon={<PlusOutlined />}
+                                    onClick={handleAddDepartment}
+                                    size="large"
+                                    style={{
+                                        borderRadius: '6px',
+                                        height: '44px',
+                                        fontSize: '16px',
+                                        fontWeight: 500
+                                    }}
                                 >
-                                    <Option value="all">All Status</Option>
-                                    <Option value="active">Active</Option>
-                                    <Option value="inactive">Inactive</Option>
-                                </Select>
+                                    Thêm khoa mới
+                                </Button>
                             </Col>
                         </Row>
+                    </Col>
 
-                        <Tabs
-                            defaultActiveKey="1"
-                            className="department-tabs"
-                            onChange={(key) => {
-                                const statusMap = { '1': 'all', '2': 'active', '3': 'inactive' };
-                                handleStatusFilter(statusMap[key]);
-                            }}
-                        >
-                            <TabPane
-                                tab={
-                                    <span>
-                                        All Departments <Badge count={counts.all} style={{ backgroundColor: '#1890ff' }} />
-                                    </span>
-                                }
-                                key="1"
-                            >
-                                <DepartmentTable
-                                    departments={statusFilter === 'all' ? departments : getFilteredDepartments('all')}
-                                    loading={loading}
-                                    pagination={statusFilter === 'all' ? pagination : { ...pagination, total: counts.all }}
-                                    onChange={handleTableChange}
-                                    onReload={() => fetchDepartments(pagination.current, pagination.pageSize, searchText, statusFilter)}
-                                />
-                            </TabPane>
+                    <Col span={24}>
+                        <Card style={{
+                            borderRadius: '8px',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                        }}>
+                            <Row gutter={16} style={{ marginBottom: '24px' }}>
+                                <Col xs={24} sm={16} md={12} lg={8}>
+                                    <Input.Search
+                                        placeholder="Tìm kiếm theo tên khoa hoặc mô tả..."
+                                        value={searchText}
+                                        onChange={handleSearchChange}
+                                        onSearch={handleSearch}
+                                        enterButton={<SearchOutlined />}
+                                        allowClear
+                                        loading={loading}
+                                        size="large"
+                                        style={{ borderRadius: '6px' }}
+                                    />
+                                </Col>
+                                <Col xs={24} sm={8} md={6} lg={4}>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        height: '40px',
+                                        color: '#666',
+                                        fontSize: '14px'
+                                    }}>
+                                        Tổng: <strong style={{
+                                            marginLeft: '8px',
+                                            color: '#1890ff',
+                                            fontSize: '16px'
+                                        }}>
+                                            {pagination.total} khoa
+                                        </strong>
+                                    </div>
+                                </Col>
+                            </Row>
 
-                            <TabPane
-                                tab={
-                                    <span>
-                                        Active <Badge count={counts.active} style={{ backgroundColor: '#52c41a' }} />
-                                    </span>
-                                }
-                                key="2"
-                            >
-                                <DepartmentTable
-                                    departments={statusFilter === 'active' ? departments : getFilteredDepartments('active')}
-                                    loading={loading}
-                                    pagination={statusFilter === 'active' ? pagination : { ...pagination, total: counts.active }}
-                                    onChange={handleTableChange}
-                                    onReload={() => fetchDepartments(pagination.current, pagination.pageSize, searchText, statusFilter)}
-                                />
-                            </TabPane>
+                            <DepartmentTable
+                                departments={departments}
+                                loading={loading}
+                                pagination={pagination}
+                                onChange={handleTableChange}
+                                onReload={handleRefresh}
+                                onEditSuccess={handleEditDepartmentSuccess}
+                                onDeleteSuccess={handleDeleteDepartmentSuccess}
+                                onError={handleDepartmentError}
+                            />
+                        </Card>
+                    </Col>
+                </Row>
 
-                            <TabPane
-                                tab={
-                                    <span>
-                                        Inactive <Badge count={counts.inactive} style={{ backgroundColor: '#ff4d4f' }} />
-                                    </span>
-                                }
-                                key="3"
-                            >
-                                <DepartmentTable
-                                    departments={statusFilter === 'inactive' ? departments : getFilteredDepartments('inactive')}
-                                    loading={loading}
-                                    pagination={statusFilter === 'inactive' ? pagination : { ...pagination, total: counts.inactive }}
-                                    onChange={handleTableChange}
-                                    onReload={() => fetchDepartments(pagination.current, pagination.pageSize, searchText, statusFilter)}
-                                />
-                            </TabPane>
-                        </Tabs>
-                    </Card>
-                </Col>
-            </Row>
-
-            {showAddModal && (
-                <AddDepartment
-                    visible={showAddModal}
-                    onCancel={() => setShowAddModal(false)}
-                    onSuccess={handleAddDepartmentSuccess}
-                />
-            )}
-        </div>
+                {showAddModal && (
+                    <AddDepartment
+                        visible={showAddModal}
+                        onCancel={handleAddDepartmentCancel}
+                        onSuccess={handleAddDepartmentSuccess}
+                        onError={(error) => handleDepartmentError(error, 'add')}
+                    />
+                )}
+            </div>
+        </>
     );
 };
-
-// ✅ THÊM: Debounce utility function
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
 
 export default DepartmentManagement;

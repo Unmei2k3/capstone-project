@@ -326,6 +326,7 @@ const WorkSchedule = () => {
           background: "#f9fafb",
           borderRadius: 16,
           boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+          marginBottom: 50
         }}
       >
         <h2 style={{

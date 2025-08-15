@@ -468,6 +468,7 @@ const AdminDoctorShiftManagement = () => {
     console.log("Selected even in doctor shift management " + JSON.stringify(selectedEvent));
     setModalDetail(true);
   };
+  
   const onDeleteShift = (id) => {
     confirm({
       title: "Xác nhận xóa ca làm việc?",
@@ -514,7 +515,7 @@ const AdminDoctorShiftManagement = () => {
       }
       const shiftTimesMap = getShiftTimesByDay(dayOfWeek);
       console.log("shiftTimesMap is : " + JSON.stringify(shiftTimesMap));
-    
+
       const validShifts = shiftArray.every(sh => {
         const times = shiftTimesMap[sh];
         return times && times.startTime && times.endTime && times.startTime.trim() !== "00:00:00" && times.endTime.trim() !== "00:00:00";
@@ -602,74 +603,78 @@ const AdminDoctorShiftManagement = () => {
 
 
   const onFinishBulk = async (values) => {
-    const { doctorIds, weekdays, shift, dateRange } = values;
+  const { doctorIds, weekdays, shift, dateRange } = values;
 
-    if (!doctorIds || doctorIds.length === 0) {
-      dispatch(setMessage({ type: 'error', content: 'Vui lòng chọn bác sĩ!' }));
-      return;
-    }
-    if (!weekdays || weekdays.length === 0) {
-      dispatch(setMessage({ type: 'error', content: 'Vui lòng chọn ngày trong tuần!' }));
-      return;
-    }
-    if (!shift || shift.length === 0) {
-      dispatch(setMessage({ type: 'error', content: 'Vui lòng chọn ca làm!' }));
-      return;
-    }
-    if (!dateRange || dateRange.length !== 2) {
-      dispatch(setMessage({ type: 'error', content: 'Vui lòng chọn khoảng thời gian!' }));
-      return;
-    }
+  if (!doctorIds || doctorIds.length === 0) {
+    dispatch(setMessage({ type: 'error', content: 'Vui lòng chọn bác sĩ!' }));
+    return;
+  }
+  if (!weekdays || weekdays.length === 0) {
+    dispatch(setMessage({ type: 'error', content: 'Vui lòng chọn ngày trong tuần!' }));
+    return;
+  }
+  if (!shift || shift.length === 0) {
+    dispatch(setMessage({ type: 'error', content: 'Vui lòng chọn ca làm!' }));
+    return;
+  }
+  if (!dateRange || dateRange.length !== 2) {
+    dispatch(setMessage({ type: 'error', content: 'Vui lòng chọn khoảng thời gian!' }));
+    return;
+  }
 
-    try {
-      for (const dayOfWeek of weekdays) {
-        const shiftTimesMap = getShiftTimesByDay(dayOfWeek);
-
-        const validShifts = shift.every((sh) => {
-          const times = shiftTimesMap[sh];
-          return times && times.startTime && times.endTime && times.startTime.trim() !== "00:00:00" && times.endTime.trim() !== "00:00:00";
-        });
-
-        if (!validShifts) {
-          dispatch(setMessage({
-            type: "error",
-            content: `Ngày ${weekdayOptions.find(d => d.value === dayOfWeek)?.label || dayOfWeek} không hỗ trợ ca làm đã chọn do bệnh viện đóng cửa hoặc thời gian không hợp lệ.`
-          }));
-          return;
-        }
-
-        const shiftsPayload = shift.map((sh) => {
-          const times = shiftTimesMap[sh];
-          return {
-            startTime: times.startTime,
-            endTime: times.endTime,
-          };
-        });
-
-        const payload = {
-          doctorIds: doctorIds,
-          daysOfWeek: [dayOfWeek],
-          shifts: shiftsPayload,
-          startDate: dateRange[0].format("YYYY-MM-DD"),
-          endDate: dateRange[1].format("YYYY-MM-DD"),
-          isAvailable: false,
-          reasonOfUnavailability: "",
-        };
-
-        console.log("Bulk create payload:", JSON.stringify(payload));
-        await createSchedule(payload);
+  try {
+    // Check từng ngày trong weekdays, để đảm bảo ca làm hợp lệ trên từng ngày
+    for (const dayOfWeek of weekdays) {
+      const shiftTimesMap = getShiftTimesByDay(dayOfWeek);
+      const validShifts = shift.every((sh) => {
+        const times = shiftTimesMap[sh];
+        return times && times.startTime && times.endTime && times.startTime.trim() !== "00:00:00" && times.endTime.trim() !== "00:00:00";
+      });
+      if (!validShifts) {
+        dispatch(setMessage({
+          type: "error",
+          content: `Ngày ${weekdayOptions.find(d => d.value === dayOfWeek)?.label || dayOfWeek} không hỗ trợ ca làm đã chọn do bệnh viện đóng cửa hoặc thời gian không hợp lệ.`
+        }));
+        return;
       }
-
-      dispatch(setMessage({ type: 'success', content: 'Tạo lịch mẫu thành công!!' }));
-      setFlag(prev => !prev);
-      bulkForm.resetFields();
-    } catch (error) {
-      console.error("Lỗi khi tạo lịch mẫu:", error);
-      dispatch(setMessage({ type: 'error', content: 'Tạo lịch mẫu thất bại, vui lòng thử lại sau!' }));
     }
-  };
+
+    const firstDayShiftTimesMap = getShiftTimesByDay(weekdays[0]);
+    const shiftsPayload = shift.map((sh) => {
+      const times = firstDayShiftTimesMap[sh];
+      return {
+        startTime: times.startTime,
+        endTime: times.endTime,
+      };
+    });
+
+    const payload = {
+      doctorIds: doctorIds,
+      daysOfWeek: weekdays,
+      shifts: shiftsPayload,
+      startDate: dateRange[0].format("YYYY-MM-DD"),
+      endDate: dateRange[1].format("YYYY-MM-DD"),
+      isAvailable: false,
+      reasonOfUnavailability: "",
+    };
+
+    console.log("Bulk create payload (1 lần gọi):", JSON.stringify(payload));
+    await createSchedule(payload);
+
+    dispatch(setMessage({ type: 'success', content: 'Tạo lịch mẫu thành công!' }));
+    setFlag(prev => !prev);
+    bulkForm.resetFields();
+
+  } catch (error) {
+    console.error("Lỗi khi tạo lịch mẫu:", error);
+    dispatch(setMessage({ type: 'error', content: 'Tạo lịch mẫu thất bại, vui lòng thử lại sau!' }));
+  }
+};
 
 
+  const closedDays = React.useMemo(() => {
+    return workingDates.filter(d => d.isClosed).map(d => d.dayOfWeek);
+  }, [workingDates]);
   const Legend = () => (
     <Row justify="center" gutter={16} style={{ marginBottom: 20 }}>
       <Col>
@@ -831,7 +836,12 @@ const AdminDoctorShiftManagement = () => {
                       label="Ngày trong tuần"
                       rules={[{ required: true, message: "Vui lòng chọn ngày trong tuần." }]}
                     >
-                      <Checkbox.Group options={weekdayOptions} />
+                      <Checkbox.Group
+                        options={weekdayOptions.map(opt => ({
+                          ...opt,
+                          disabled: closedDays.includes(opt.value),  
+                        }))}
+                      />
                     </Form.Item>
 
                     <Form.Item

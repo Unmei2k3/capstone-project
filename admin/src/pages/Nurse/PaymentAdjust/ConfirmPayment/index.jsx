@@ -172,11 +172,9 @@ function NursePaymentConfirmation() {
           {booking.createdOn && (
             <Descriptions.Item label="Ngày tạo">{formatDateTime(booking.createdOn)}</Descriptions.Item>
           )}
-          <Descriptions.Item label="Phương thức thanh toán">{booking.paymentMethod}</Descriptions.Item>
+          <Descriptions.Item label="Phương thức thanh toán">{booking.method===1?"Tiền Mặt" : "Chuyển Khoản"}</Descriptions.Item>
           <Descriptions.Item label="Tổng tiền"> {paymentMethodMap[booking.method] || 'Không xác định'}</Descriptions.Item>
-          {booking.insuranceClaimInfo != null && (
-            <Descriptions.Item label="Thông tin bảo hiểm">{booking.insuranceClaimInfo || '—'}</Descriptions.Item>
-          )}
+
           <Descriptions.Item label="Trạng thái thanh toán">
             {statusMap[booking.status] ? (
               <Tag color={statusMap[booking.status].color}>

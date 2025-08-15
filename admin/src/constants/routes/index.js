@@ -39,6 +39,7 @@ import PaymentSuccess from "../../pages/Payment/PaymentSuccess";
 import PaymentCancelled from "../../pages/Payment/PaymentCancelled";
 import { DOCTOR, HOSPITALADMIN, HOSPITALSTAFF, NURSE, SYSTEMADMIN } from "../roles/role";
 import MyHospital from "../../pages/AdminHospital/HospitalDetail/HospitalDetail";
+import PatientAppointmentList from "../../pages/Nurse/PatientAppointmentList";
 
 export const routes = [
   {
@@ -47,9 +48,7 @@ export const routes = [
     children: [
       { index: true, element: <Login /> }, // đã vẽ
       { path: "login", element: <Login /> }, // đã vẽ
-      { path: "/payment/success", element: <PaymentSuccess /> },
-      { path: "/payment/cancelled", element: <PaymentCancelled /> },
-      { path: "/payment/cancel", element: <PaymentCancelled /> },
+     
     ],
   },
   {
@@ -77,7 +76,7 @@ export const routes = [
       { path: "medical-service-management", element: <MedicalServiceManagement /> },  // đã vẽ
       { path: "leave-request-management", element: <LeaveRequestManagement /> }, // đã vẽ
       { path: "hospital-statistic", element: <HospitalStatisticPage /> },
-      { path: "payment-list", element: <NurseUnpaidBookingList /> },
+    //  { path: "payment-list", element: <NurseUnpaidBookingList /> },
       {
         path: "hospital-detail",
         element: <MyHospital />,
@@ -129,6 +128,7 @@ export const routes = [
       { path: "payment-confirm/:id", element: <NursePaymentConfirmation /> },
       { path: "payment-list", element: <NurseUnpaidBookingList /> }, // đã vẽ
       { path: "request-leave", element: <DoctorRequestLeave /> },
+      { path: "patient-appointment-list", element: <PatientAppointmentList/>}
     ],
   },
   {

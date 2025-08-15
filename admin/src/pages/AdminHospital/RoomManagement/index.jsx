@@ -146,17 +146,18 @@ const ManageRoom = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-       const { name, roomCode, specialty, department, description } = values;
+      const { name, roomCode, specialty, department, description } = values;
 
       const payload = {
-        specializationId: specialty,
         departmentId: department,
         hospitalId: hospitalId,
         roomName: name,
-        roomCode: editing?.roomCode|| roomCode,
+        roomCode: roomCode,
         description: description || "",
       };
-
+      if (specialty) {
+        payload.specializationId = specialty;
+      }
       if (editing) {
         payload.roomId = editing.id;
         console.log("handle submit in edit room : " + JSON.stringify(payload));
@@ -173,7 +174,13 @@ const ManageRoom = () => {
       setEditing(null);
       form.resetFields();
     } catch (error) {
-      message.error("Lỗi khi lưu phòng khám");
+      if (editing) {
+        dispatch(setMessage({ type: 'error', content: 'Lỗi khi cập nhật phòng khám!' }));
+   
+      } else {
+        dispatch(setMessage({ type: 'error', content: 'Lỗi khi tạo phòng khám!' }));
+       
+      }
       console.error(error);
     }
   };

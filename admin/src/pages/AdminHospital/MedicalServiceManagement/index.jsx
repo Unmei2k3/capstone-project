@@ -27,11 +27,13 @@ const MedicalServiceManagement = () => {
   const [flag, setFlag] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
   const dispatch = useDispatch();
+  const user = useSelector((state) => state.user.user);
+  const hospitalId = user?.hospitals[0]?.id;
   const [messageApi, contextHolder] = message.useMessage();
   const messageState = useSelector((state) => state.message)
   useEffect(() => {
     const fetchApi = async () => {
-      const result = await getHospitalServices(105);
+      const result = await getHospitalServices(hospitalId);
       console.log("result in medical service : " + result);
       if (result) {
         setServices(result);
@@ -76,7 +78,7 @@ const MedicalServiceManagement = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      const { id, hospitalId, name, price, description } = values;
+      const { id, name, price, description } = values;
 
       if (id) {
         const updated = { id, hospitalId, name, price: parseInt(price, 10), description };
@@ -222,7 +224,7 @@ const MedicalServiceManagement = () => {
 
             <Col span={24}>
               <Card>
-                <Row style={{marginBottom: 25}}>
+                <Row style={{ marginBottom: 25 }}>
                   <Col span={8}>
                     <Input.Search
                       placeholder="Tìm theo tên dịch vụ..."
@@ -237,7 +239,7 @@ const MedicalServiceManagement = () => {
                   dataSource={filteredData}
                   rowKey="id"
                   columns={columns}
-                   pagination={{
+                  pagination={{
                     ...pagination,
                     onChange: (page, pageSize) =>
                       setPagination({ current: page, pageSize }),
@@ -276,9 +278,7 @@ const MedicalServiceManagement = () => {
               <Form.Item name="id" hidden>
                 <Input />
               </Form.Item>
-              <Form.Item name="hospitalId" hidden>
-                <Input />
-              </Form.Item>
+          
               <Form.Item
                 name="name"
                 label="Tên dịch vụ"

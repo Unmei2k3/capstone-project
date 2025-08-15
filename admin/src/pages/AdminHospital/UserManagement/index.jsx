@@ -58,7 +58,7 @@ const UserManagement = () => {
                 search,
             });
 
-            console.log('✅ Users API response:', response);
+            console.log('✅ Phản hồi API người dùng:', response);
 
             if (response && response.success) {
                 const userData = response.result || [];
@@ -89,7 +89,7 @@ const UserManagement = () => {
                     user: otherCount,
                 });
 
-                console.log('📊 User counts:', {
+                console.log('📊 Thống kê người dùng:', {
                     all: userData.length,
                     admin: adminCount,
                     doctor: doctorCount,
@@ -99,7 +99,7 @@ const UserManagement = () => {
                 });
             }
         } catch (error) {
-            console.error('Failed to fetch users:', error);
+            console.error('Lỗi khi tải danh sách người dùng:', error);
         } finally {
             setLoading(false);
         }
@@ -134,7 +134,7 @@ const UserManagement = () => {
                         <Col>
                             <h2>
                                 <UserOutlined style={{ marginRight: 12 }} />
-                                User Management
+                                Quản lý Người dùng
                             </h2>
                         </Col>
                         <Col>
@@ -144,7 +144,7 @@ const UserManagement = () => {
                                 onClick={handleAddUser}
                                 size="large"
                             >
-                                Add User
+                                Thêm Người dùng
                             </Button>
                         </Col>
                     </Row>
@@ -155,7 +155,7 @@ const UserManagement = () => {
                         <Row className="actions-row">
                             <Col xs={24} sm={12} md={8} lg={6} className="search-container">
                                 <Input.Search
-                                    placeholder="Search by name, email..."
+                                    placeholder="Tìm kiếm theo tên, email..."
                                     value={searchText}
                                     onChange={(e) => setSearchText(e.target.value)}
                                     onSearch={handleSearch}
@@ -167,11 +167,11 @@ const UserManagement = () => {
                         </Row>
 
                         <Tabs defaultActiveKey="1" className="user-tabs">
-                            {/* ✅ All Users Tab */}
+                            {/* ✅ Tất cả người dùng */}
                             <TabPane
                                 tab={
                                     <span>
-                                        All Users <Badge count={counts.all} style={{ backgroundColor: '#1890ff' }} />
+                                        Tất cả <Badge count={counts.all} style={{ backgroundColor: '#1890ff' }} />
                                     </span>
                                 }
                                 key="1"
@@ -185,11 +185,11 @@ const UserManagement = () => {
                                 />
                             </TabPane>
 
-                            {/* ✅ Administrators Tab (gộp System Admin + Hospital Admin) */}
+                            {/* ✅ Tab Quản trị viên (gộp System Admin + Hospital Admin) */}
                             <TabPane
                                 tab={
                                     <span>
-                                        Administrators <Badge count={counts.admin} style={{ backgroundColor: '#faad14' }} />
+                                        Quản trị viên <Badge count={counts.admin} style={{ backgroundColor: '#faad14' }} />
                                     </span>
                                 }
                                 key="2"
@@ -203,11 +203,11 @@ const UserManagement = () => {
                                 />
                             </TabPane>
 
-                            {/* ✅ Doctors Tab */}
+                            {/* ✅ Tab Bác sĩ */}
                             <TabPane
                                 tab={
                                     <span>
-                                        Doctors <Badge count={counts.doctor} style={{ backgroundColor: '#52c41a' }} />
+                                        Bác sĩ <Badge count={counts.doctor} style={{ backgroundColor: '#52c41a' }} />
                                     </span>
                                 }
                                 key="3"
@@ -221,11 +221,11 @@ const UserManagement = () => {
                                 />
                             </TabPane>
 
-                            {/* ✅ Nurses Tab */}
+                            {/* ✅ Tab Y tá */}
                             <TabPane
                                 tab={
                                     <span>
-                                        Nurses <Badge count={counts.nurse} style={{ backgroundColor: '#13c2c2' }} />
+                                        Y tá <Badge count={counts.nurse} style={{ backgroundColor: '#13c2c2' }} />
                                     </span>
                                 }
                                 key="4"
@@ -239,11 +239,11 @@ const UserManagement = () => {
                                 />
                             </TabPane>
 
-                            {/* ✅ Patients Tab */}
+                            {/* ✅ Tab Bệnh nhân */}
                             <TabPane
                                 tab={
                                     <span>
-                                        Patients <Badge count={counts.patient} style={{ backgroundColor: '#1890ff' }} />
+                                        Bệnh nhân <Badge count={counts.patient} style={{ backgroundColor: '#1890ff' }} />
                                     </span>
                                 }
                                 key="5"
@@ -257,11 +257,11 @@ const UserManagement = () => {
                                 />
                             </TabPane>
 
-                            {/* ✅ Other Users Tab */}
+                            {/* ✅ Tab Khác */}
                             <TabPane
                                 tab={
                                     <span>
-                                        Others <Badge count={counts.user} style={{ backgroundColor: '#8c8c8c' }} />
+                                        Khác <Badge count={counts.user} style={{ backgroundColor: '#8c8c8c' }} />
                                     </span>
                                 }
                                 key="6"

@@ -17,7 +17,10 @@ import { useNavigate } from 'react-router-dom';
 import viVN from 'antd/es/locale/vi_VN';
 import { getPayments } from '../../../../services/paymentService';
 import { useSelector } from 'react-redux';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 
+dayjs.extend(utc);
 const { Title } = Typography;
 const { TabPane } = Tabs;
 
@@ -52,6 +55,13 @@ const NurseUnpaidBookingList = () => {
     });
   };
 
+  const renderAppointmentTime = (value) => {
+    if (!value) return '';
+    const date = dayjs(value);
+    if (!date.isValid()) return 'Invalid Date';
+    return date.format('DD/MM/YYYY');
+  };
+
   useEffect(() => {
     const fetchPayments = async () => {
       setLoading(true);
@@ -66,7 +76,7 @@ const NurseUnpaidBookingList = () => {
           serviceName: item.serviceName,
           doctorName: item.doctorName,
           amount: item.amount,
-          appointmentTime: formatDateTime(item.appointmentTime),
+          appointmentTime: item.appointmentTime,
           createdOn: formatDateTime(item.createdOn),
           paymentMethod: item.method === 1 ? 'offline' : item.method === 2 ? 'online' : 'unknown',
           status: item.status,
@@ -83,19 +93,19 @@ const NurseUnpaidBookingList = () => {
 
     fetchPayments();
   }, []);
-const filteredBookings = useMemo(() => {
-  return bookingList.filter((item) => {
-    const matchStatus = activeTab === 'all' || String(item.status) === activeTab;
+  const filteredBookings = useMemo(() => {
+    return bookingList.filter((item) => {
+      const matchStatus = activeTab === 'all' || String(item.status) === activeTab;
 
-    const searchLower = searchText.toLowerCase();
-    const matchSearch =
-      item.patientName.toLowerCase().includes(searchLower) ||
-      item.phoneNumber.includes(searchText) ||
-      item.id.toLowerCase().includes(searchLower);
+      const searchLower = searchText.toLowerCase();
+      const matchSearch =
+        item.patientName.toLowerCase().includes(searchLower) ||
+        item.phoneNumber.includes(searchText) ||
+        item.id.toLowerCase().includes(searchLower);
 
-    return matchStatus && matchSearch;
-  });
-}, [bookingList, searchText, activeTab]);
+      return matchStatus && matchSearch;
+    });
+  }, [bookingList, searchText, activeTab]);
 
   const statusCounts = useMemo(() => {
     const counts = { all: 0 };
@@ -120,14 +130,19 @@ const filteredBookings = useMemo(() => {
     { title: 'Bệnh nhân', dataIndex: 'patientName', key: 'patientName' },
     { title: 'SĐT', dataIndex: 'phoneNumber', key: 'phoneNumber' },
     { title: 'Dịch vụ', dataIndex: 'serviceName', key: 'serviceName' },
-    { title: 'Thời gian khám', dataIndex: 'appointmentTime', key: 'appointmentTime' },
+    {
+      title: 'Thời gian khám',
+      dataIndex: 'appointmentTime',
+      key: 'appointmentTime',
+      render: renderAppointmentTime
+    },
     {
       title: 'Trạng thái',
       key: 'status',
       render: (_, record) => {
         const st = statusMap[record.status];
         return st ? <Tag color={st.color}>{st.text}</Tag> : <Tag color="default">Không rõ</Tag>;
-      },
+      }
     },
     {
       title: 'Hành động',
@@ -177,11 +192,11 @@ const filteredBookings = useMemo(() => {
 
               <Tabs activeKey={activeTab} onChange={setActiveTab}>
                 <TabPane key="all" tab={<span>Tất cả <Badge count={statusCounts.all} /></span>} />
-                <TabPane key="1" tab={<span>Pending <Badge count={statusCounts[1]} style={{ backgroundColor: 'gold' }} /></span>} />
-                <TabPane key="2" tab={<span>Completed <Badge count={statusCounts[2]} style={{ backgroundColor: 'green' }} /></span>} />
-                <TabPane key="3" tab={<span>Failed <Badge count={statusCounts[3]} style={{ backgroundColor: 'red' }} /></span>} />
-                <TabPane key="4" tab={<span>Refunded <Badge count={statusCounts[4]} style={{ backgroundColor: 'purple' }} /></span>} />
-                <TabPane key="5" tab={<span>Cancel <Badge count={statusCounts[5]} style={{ backgroundColor: 'grey' }} /></span>} />
+                <TabPane key="1" tab={<span>Đang chờ <Badge count={statusCounts[1]} style={{ backgroundColor: 'gold' }} /></span>} />
+                <TabPane key="2" tab={<span>Hoàn thành <Badge count={statusCounts[2]} style={{ backgroundColor: 'green' }} /></span>} />
+                <TabPane key="3" tab={<span>Thất bại <Badge count={statusCounts[3]} style={{ backgroundColor: 'red' }} /></span>} />
+                <TabPane key="4" tab={<span>Hoàn tiền <Badge count={statusCounts[4]} style={{ backgroundColor: 'purple' }} /></span>} />
+                <TabPane key="5" tab={<span>Đã huỷ <Badge count={statusCounts[5]} style={{ backgroundColor: 'grey' }} /></span>} />
               </Tabs>
 
               <Table

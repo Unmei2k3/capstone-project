@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Table, Button, Space, Tag, Tooltip, Avatar } from 'antd';
-import { EditOutlined, DeleteOutlined, EyeOutlined, BankOutlined, UserOutlined, PhoneOutlined, TeamOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, EyeOutlined, BankOutlined, TeamOutlined } from '@ant-design/icons';
 import EditDepartment from './EditDepartment';
 import DeleteDepartment from './DeleteDepartment';
 import ViewDepartment from './ViewDepartmentDetail';
@@ -10,7 +10,7 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
     const [editingDepartment, setEditingDepartment] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [departmentToDelete, setDepartmentToDelete] = useState(null); // Sử dụng này thay vì selectedRecord
+    const [departmentToDelete, setDepartmentToDelete] = useState(null);
     const [showViewModal, setShowViewModal] = useState(false);
     const [viewingDepartment, setViewingDepartment] = useState(null);
     const [showDoctorModal, setShowDoctorModal] = useState(false);
@@ -24,10 +24,6 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
 
     const handleDelete = (record) => {
         console.log('🔍 DepartmentTable: Delete clicked for record:', record);
-        console.log('🔍 Record keys:', Object.keys(record || {}));
-        console.log('🔍 Record ID:', record?.id);
-        console.log('🔍 Record structure:', JSON.stringify(record, null, 2));
-
         setDepartmentToDelete(record);
         setShowDeleteModal(true);
     };
@@ -58,148 +54,154 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
         onReload(); // Refresh department data
     };
 
-    const getStatusColor = (status) => {
-        switch (status) {
-            case 'active':
-                return 'success';
-            case 'inactive':
-                return 'default';
-            default:
-                return 'default';
-        }
-    };
-
-    const formatDate = (dateString) => {
-        if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleDateString();
-    };
-
+    // ✅ Simplified columns based on API response structure
     const columns = [
         {
-            title: 'Department',
-            key: 'department',
+            title: '#',
+            key: 'index',
+            width: 60,
+            render: (text, record, index) => {
+                return (pagination.current - 1) * pagination.pageSize + index + 1;
+            }
+        },
+        {
+            title: 'ID Khoa',
+            dataIndex: 'id',
+            key: 'id',
+            width: 80,
+            render: (id) => (
+                <Tag color="blue" style={{ fontSize: '11px', fontFamily: 'monospace' }}>
+                    #{id}
+                </Tag>
+            ),
+        },
+        {
+            title: 'Tên Khoa/Phòng',
+            key: 'name',
+            width: 300,
             render: (_, record) => (
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                     <Avatar
                         icon={<BankOutlined />}
-                        style={{ marginRight: 12, backgroundColor: '#1890ff' }}
+                        style={{ 
+                            marginRight: 12, 
+                            backgroundColor: '#1890ff',
+                            flexShrink: 0
+                        }}
+                        size="default"
                     />
-                    <div>
-                        <div style={{ fontWeight: 500 }}>{record.name}</div>
-                        <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                            ID: {record.id} {record.code && `| Code: ${record.code}`}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ 
+                            fontWeight: 500, 
+                            fontSize: '14px',
+                            color: '#262626'
+                        }}>
+                            {record.name || 'Không có tên'}
+                        </div>
+                        <div style={{ 
+                            fontSize: '11px', 
+                            color: '#8c8c8c',
+                            marginTop: '2px'
+                        }}>
+                            Hospital ID: {record.hospitalId || 'N/A'}
                         </div>
                     </div>
                 </div>
             ),
         },
         {
-            title: 'Description',
+            title: 'Mô tả',
             dataIndex: 'description',
             key: 'description',
+            width: 350,
             render: (description) => (
-                <div style={{ maxWidth: 200 }}>
+                <div style={{ 
+                    maxWidth: 330,
+                    lineHeight: '1.4'
+                }}>
                     {description ? (
-                        description.length > 80
-                            ? description.substring(0, 80) + '...'
-                            : description
-                    ) : 'N/A'}
+                        description.length > 80 ? (
+                            <Tooltip title={description} placement="topLeft">
+                                <span style={{ 
+                                    fontSize: '13px',
+                                    color: '#595959',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
+                                }}>
+                                    {description}
+                                </span>
+                            </Tooltip>
+                        ) : (
+                            <span style={{ 
+                                fontSize: '13px',
+                                color: '#595959'
+                            }}>
+                                {description}
+                            </span>
+                        )
+                    ) : (
+                        <span style={{ 
+                            color: '#bfbfbf', 
+                            fontSize: '13px',
+                            fontStyle: 'italic'
+                        }}>
+                            Chưa có mô tả
+                        </span>
+                    )}
                 </div>
             ),
         },
         {
-            title: 'Head of Department',
-            key: 'head',
-            render: (_, record) => (
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
-                        <UserOutlined style={{ marginRight: 4, color: '#1890ff' }} />
-                        <span style={{ fontSize: '12px' }}>{record.headOfDepartment || 'N/A'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <PhoneOutlined style={{ marginRight: 4, color: '#52c41a' }} />
-                        <span style={{ fontSize: '12px' }}>{record.phoneNumber || 'N/A'}</span>
-                    </div>
-                </div>
-            ),
-        },
-        {
-            title: 'Location',
-            dataIndex: 'location',
-            key: 'location',
-            render: (location) => location || 'N/A',
-        },
-        {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            render: (status) => (
-                <Tag color={getStatusColor(status)} className="department-status-tag">
-                    {status?.toUpperCase() || 'ACTIVE'}
-                </Tag>
-            ),
-        },
-        {
-            title: 'Statistics',
-            key: 'statistics',
-            render: (_, record) => (
-                <div>
-                    <div style={{ fontSize: '12px' }}>Staff: <strong>{record.totalStaff || 0}</strong></div>
-                    <div style={{ fontSize: '12px' }}>Beds: <strong>{record.totalBeds || 0}</strong></div>
-                </div>
-            ),
-        },
-        {
-            title: 'Created Date',
-            dataIndex: 'createdAt',
-            key: 'createdAt',
-            render: (date) => formatDate(date),
-        },
-        {
-            title: 'Actions',
+            title: 'Thao tác',
             key: 'actions',
-            width: 200,
-            render: (_, record) => {
-
-
-                return (
-                    <Space size="small">
-                        <Tooltip title="View Details">
-                            <Button
-                                type="text"
-                                icon={<EyeOutlined />}
-                                onClick={() => handleView(record)}
-                            />
-                        </Tooltip>
-                        <Tooltip title="Manage Doctors">
-                            <Button
-                                type="text"
-                                icon={<TeamOutlined />}
-                                onClick={() => handleManageDoctors(record)}
-                                style={{ color: '#52c41a' }}
-                            />
-                        </Tooltip>
-                        <Tooltip title="Edit">
-                            <Button
-                                type="text"
-                                icon={<EditOutlined />}
-                                onClick={() => handleEdit(record)}
-                            />
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                            <Button
-                                type="text"
-                                danger
-                                icon={<DeleteOutlined />}
-                                onClick={() => {
-                                    console.log('Delete button clicked for record:', record);
-                                    handleDelete(record);
-                                }}
-                            />
-                        </Tooltip>
-                    </Space>
-                );
-            },
+            width: 160,
+            fixed: 'right',
+            render: (_, record) => (
+                <Space size="small">
+                    <Tooltip title="Xem chi tiết">
+                        <Button
+                            type="text"
+                            icon={<EyeOutlined />}
+                            size="small"
+                            onClick={() => handleView(record)}
+                            style={{ color: '#1890ff' }}
+                        />
+                    </Tooltip>
+                    <Tooltip title="Quản lý bác sĩ">
+                        <Button
+                            type="text"
+                            icon={<TeamOutlined />}
+                            size="small"
+                            onClick={() => handleManageDoctors(record)}
+                            style={{ color: '#52c41a' }}
+                        />
+                    </Tooltip>
+                    <Tooltip title="Chỉnh sửa">
+                        <Button
+                            type="text"
+                            icon={<EditOutlined />}
+                            size="small"
+                            onClick={() => handleEdit(record)}
+                            style={{ color: '#fa8c16' }}
+                        />
+                    </Tooltip>
+                    <Tooltip title="Xóa">
+                        <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            size="small"
+                            onClick={() => {
+                                console.log('Delete button clicked for record:', record);
+                                handleDelete(record);
+                            }}
+                        />
+                    </Tooltip>
+                </Space>
+            ),
         },
     ];
 
@@ -208,18 +210,54 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
             <Table
                 columns={columns}
                 dataSource={departments}
-                rowKey={(record) => {
-
-                    return record.id || record.departmentId || record.deptId || Math.random();
+                rowKey={(record) => record.id || Math.random()}
+                pagination={{
+                    ...pagination,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total, range) => 
+                        `${range[0]}-${range[1]} của ${total} khoa/phòng`,
+                    pageSizeOptions: ['5', '10', '20', '50'],
                 }}
-                pagination={pagination}
                 loading={loading}
                 onChange={onChange}
                 bordered={false}
                 size="middle"
+                scroll={{ x: 950 }}
+                locale={{
+                    emptyText: (
+                        <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                            <BankOutlined style={{ 
+                                fontSize: '48px', 
+                                color: '#d9d9d9', 
+                                marginBottom: '16px' 
+                            }} />
+                            <div style={{ 
+                                color: '#999', 
+                                fontSize: '16px', 
+                                marginBottom: '8px' 
+                            }}>
+                                Không có dữ liệu khoa/phòng
+                            </div>
+                            <div style={{ color: '#ccc', fontSize: '12px' }}>
+                                Hãy thử thêm khoa/phòng mới hoặc làm mới dữ liệu
+                            </div>
+                        </div>
+                    ),
+                    triggerDesc: 'Nhấn để sắp xếp giảm dần',
+                    triggerAsc: 'Nhấn để sắp xếp tăng dần',
+                    cancelSort: 'Nhấn để hủy sắp xếp',
+                }}
+                className="custom-department-table"
+                style={{
+                    backgroundColor: '#fff',
+                    borderRadius: '8px',
+                    overflow: 'hidden'
+                }}
             />
 
-            {showEditModal && (
+            {/* ✅ Enhanced modals với proper props */}
+            {showEditModal && editingDepartment && (
                 <EditDepartment
                     visible={showEditModal}
                     record={editingDepartment}
@@ -228,22 +266,24 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
                         setEditingDepartment(null);
                     }}
                     onSuccess={handleEditSuccess}
+                    key={`edit-${editingDepartment.id}`}
                 />
             )}
 
-            {showDeleteModal && (
+            {showDeleteModal && departmentToDelete && (
                 <DeleteDepartment
                     visible={showDeleteModal}
-                    record={departmentToDelete} // Sử dụng departmentToDelete thay vì selectedRecord
+                    record={departmentToDelete}
                     onCancel={() => {
                         setShowDeleteModal(false);
                         setDepartmentToDelete(null);
                     }}
                     onSuccess={handleDeleteSuccess}
+                    key={`delete-${departmentToDelete.id}`}
                 />
             )}
 
-            {showViewModal && (
+            {showViewModal && viewingDepartment && (
                 <ViewDepartment
                     visible={showViewModal}
                     record={viewingDepartment}
@@ -251,10 +291,11 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
                         setShowViewModal(false);
                         setViewingDepartment(null);
                     }}
+                    key={`view-${viewingDepartment.id}`}
                 />
             )}
 
-            {showDoctorModal && (
+            {showDoctorModal && managingDepartment && (
                 <DoctorManagement
                     visible={showDoctorModal}
                     department={managingDepartment}
@@ -263,6 +304,7 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
                         setManagingDepartment(null);
                     }}
                     onSuccess={handleDoctorManagementSuccess}
+                    key={`doctor-${managingDepartment.id}`}
                 />
             )}
         </div>

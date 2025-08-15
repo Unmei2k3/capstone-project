@@ -10,7 +10,6 @@ import {
     Statistic,
     Descriptions,
     Spin,
-    message,
     Typography,
     Space,
     Rate,
@@ -20,7 +19,8 @@ import {
     Modal,
     Form,
     TimePicker,
-    Switch
+    Switch,
+    message
 } from 'antd';
 import {
     EditOutlined,
@@ -46,7 +46,7 @@ import {
     createHospitalWorkingDates,
     updateHospitalWorkingDates
 } from '../../../services/hospitalService';
-import { setMessage } from '../../../redux/slices/messageSlice';
+import { setMessage, clearMessage } from '../../../redux/slices/messageSlice';
 import EditHospital from './EditHospitalDetail';
 import './HospitalDetail.scss';
 
@@ -61,10 +61,23 @@ const MyHospital = () => {
     const [workingScheduleForm] = Form.useForm();
 
     const user = useSelector((state) => state.user?.user);
+    const messageState = useSelector((state) => state.message);
     const dispatch = useDispatch();
+    const [messageApi, contextHolder] = message.useMessage();
 
     // Get hospital ID from user data
     const hospitalId = user?.hospitals?.[0]?.id;
+
+    // ✅ Handle Redux messages
+    useEffect(() => {
+        if (messageState) {
+            messageApi.open({
+                type: messageState.type,
+                content: messageState.content,
+            });
+            dispatch(clearMessage());
+        }
+    }, [messageState, messageApi, dispatch]);
 
     useEffect(() => {
         if (hospitalId) {
@@ -77,24 +90,27 @@ const MyHospital = () => {
         setLoading(true);
         try {
             console.log('🏥 Fetching hospital detail for ID:', hospitalId);
+
             const response = await getHospitalById(hospitalId);
             console.log('✅ Hospital detail response:', response);
 
             // ✅ Extract data from API response structure
             const hospitalData = response.result || response;
             setHospital(hospitalData);
+            console.log("service in hospital : " + JSON.stringify(hospitalData));
 
+            // ✅ Success message
             dispatch(setMessage({
                 type: 'success',
-                content: 'Hospital information loaded successfully',
-                duration: 3
+                content: `Đã tải thông tin bệnh viện "${hospitalData.name}" thành công`
             }));
         } catch (error) {
             console.error('❌ Error fetching hospital detail:', error);
+
+            // ✅ Error message
             dispatch(setMessage({
                 type: 'error',
-                content: 'Failed to load hospital information',
-                duration: 4
+                content: 'Không thể tải thông tin bệnh viện. Vui lòng thử lại.'
             }));
         } finally {
             setLoading(false);
@@ -104,25 +120,42 @@ const MyHospital = () => {
     const fetchWorkingDates = async () => {
         try {
             console.log('📅 Fetching working dates for hospital ID:', hospitalId);
+
             const response = await getHospitalWorkingDates(hospitalId);
             console.log('✅ Working dates response:', response);
 
             const workingDatesData = response.workingDates || response || [];
             setWorkingDates(workingDatesData);
+
+            // ✅ Success message for working dates
+            if (workingDatesData.length > 0) {
+                dispatch(setMessage({
+                    type: 'info',
+                    content: `Đã tải ${workingDatesData.length} ngày làm việc`
+                }));
+            }
         } catch (error) {
             console.error('❌ Error fetching working dates:', error);
             setWorkingDates([]);
+
+            // ✅ Warning message for working dates
+            dispatch(setMessage({
+                type: 'warning',
+                content: 'Không thể tải lịch làm việc. Sử dụng lịch mặc định.'
+            }));
         }
     };
 
     const handleEditSuccess = (updatedHospital) => {
         setHospital(updatedHospital);
         setEditModalVisible(false);
+
+        // ✅ Success message for edit
         dispatch(setMessage({
             type: 'success',
-            content: 'Hospital information updated successfully',
-            duration: 4
+            content: `Cập nhật thông tin bệnh viện "${updatedHospital.name}" thành công!`
         }));
+
         // Refresh data
         fetchHospitalDetail();
     };
@@ -140,6 +173,11 @@ const MyHospital = () => {
 
     // Handle opening working schedule modal
     const handleOpenWorkingScheduleModal = () => {
+        dispatch(setMessage({
+            type: 'info',
+            content: 'Đang mở form chỉnh sửa lịch làm việc...'
+        }));
+
         const dataToEdit = workingDates.length > 0 ? workingDates : getDefaultWorkingDates();
 
         // Convert time strings to dayjs objects for TimePicker
@@ -156,6 +194,14 @@ const MyHospital = () => {
 
         workingScheduleForm.setFieldsValue(formData);
         setWorkingScheduleModalVisible(true);
+
+        // ✅ Form loaded message
+        setTimeout(() => {
+            dispatch(setMessage({
+                type: 'success',
+                content: 'Form lịch làm việc đã được tải thành công'
+            }));
+        }, 500);
     };
 
     // Handle working schedule form submission
@@ -184,15 +230,13 @@ const MyHospital = () => {
                 await updateHospitalWorkingDates(hospitalId, { workingDates: workingDatesPayload });
                 dispatch(setMessage({
                     type: 'success',
-                    content: 'Lịch làm việc đã được cập nhật thành công',
-                    duration: 4
+                    content: 'Cập nhật lịch làm việc thành công!'
                 }));
             } else {
                 await createHospitalWorkingDates(hospitalId, { workingDates: workingDatesPayload });
                 dispatch(setMessage({
                     type: 'success',
-                    content: 'Lịch làm việc đã được tạo thành công',
-                    duration: 4
+                    content: 'Tạo lịch làm việc mới thành công!'
                 }));
             }
 
@@ -201,12 +245,29 @@ const MyHospital = () => {
 
         } catch (error) {
             console.error('❌ Error saving working schedule:', error);
-            dispatch(setMessage({
-                type: 'error',
-                content: 'Có lỗi xảy ra khi lưu lịch làm việc',
-                duration: 4
-            }));
+
+            // ✅ Error handling
+            if (error.name === 'ValidationError') {
+                dispatch(setMessage({
+                    type: 'warning',
+                    content: 'Vui lòng kiểm tra lại thông tin đã nhập'
+                }));
+            } else {
+                dispatch(setMessage({
+                    type: 'error',
+                    content: 'Có lỗi xảy ra khi lưu lịch làm việc. Vui lòng thử lại.'
+                }));
+            }
         }
+    };
+
+    // ✅ Handle modal cancel
+    const handleWorkingScheduleCancel = () => {
+        setWorkingScheduleModalVisible(false);
+        dispatch(setMessage({
+            type: 'info',
+            content: 'Đã hủy chỉnh sửa lịch làm việc'
+        }));
     };
 
     const getHospitalType = (type) => {
@@ -328,422 +389,438 @@ const MyHospital = () => {
     }
 
     return (
-        <div className="hospital-detail-container">
-            {/* Header Section */}
-            <Card className="hospital-header-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                        <Avatar
-                            size={80}
-                            src={hospital.image}
-                            icon={<BankOutlined />}
-                            style={{
-                                backgroundColor: '#1890ff',
-                                marginRight: 24
-                            }}
-                        />
-                        <div>
-                            <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
-                                {hospital.name}
-                            </Title>
-                            <Space style={{ marginTop: 8 }}>
-                                <Tag color={getTypeColor(hospital.type)} icon={<MedicineBoxOutlined />}>
-                                    {getHospitalType(hospital.type)}
-                                </Tag>
-                                <Tag color="green" icon={<SafetyOutlined />}>
-                                    Đang hoạt động
-                                </Tag>
-                                {hospital.code && (
-                                    <Tag color="default">Mã: {hospital.code}</Tag>
-                                )}
-                            </Space>
-                            <div style={{ marginTop: 8 }}>
-                                <Space>
-                                    <ClockCircleOutlined />
-                                    <Text>
-                                        {formatTime(hospital.openTime)} - {formatTime(hospital.closeTime)}
-                                    </Text>
-                                </Space>
-                            </div>
-                        </div>
-                    </div>
-                    <Button
-                        type="primary"
-                        icon={<EditOutlined />}
-                        onClick={() => setEditModalVisible(true)}
-                    >
-                        Chỉnh sửa Bệnh viện
-                    </Button>
-                </div>
-            </Card>
-
-            {/* Statistics Section */}
-            <Row gutter={16} style={{ marginBottom: 24 }}>
-                <Col xs={24} sm={6}>
-                    <Card>
-                        <Statistic
-                            title="Tổng dịch vụ"
-                            value={hospital.services?.length || 0}
-                            prefix={<MedicineBoxOutlined />}
-                            valueStyle={{ color: '#1890ff' }}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={6}>
-                    <Card>
-                        <Statistic
-                            title="ID Bệnh viện"
-                            value={hospital.id}
-                            prefix={<BankOutlined />}
-                            valueStyle={{ color: '#3f8600' }}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={6}>
-                    <Card>
-                        <Statistic
-                            title="Loại bệnh viện"
-                            value={hospital.type}
-                            prefix={<SafetyOutlined />}
-                            valueStyle={{ color: '#722ed1' }}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={6}>
-                    <Card>
-                        <Statistic
-                            title="Giá trung bình"
-                            value={hospital.services?.length > 0 ?
-                                (hospital.services.reduce((sum, service) => sum + service.price, 0) / hospital.services.length).toFixed(0) : 0
-                            }
-                            prefix={<DollarOutlined />}
-                            suffix="VNĐ"
-                            valueStyle={{ color: '#faad14' }}
-                        />
-                    </Card>
-                </Col>
-            </Row>
-
-            {/* Main Information */}
-            <Row gutter={16}>
-                <Col xs={24} lg={16}>
-                    <Card
-                        title={
-                            <Space>
-                                <HomeOutlined />
-                                Thông tin bệnh viện
-                            </Space>
-                        }
-                        style={{ marginBottom: 16 }}
-                    >
-                        <Descriptions column={1} bordered>
-                            <Descriptions.Item label="Tên bệnh viện">
-                                {hospital.name}
-                            </Descriptions.Item>
-
-                            <Descriptions.Item label="ID Bệnh viện">
-                                <Text code>{hospital.id}</Text>
-                            </Descriptions.Item>
-
-                            <Descriptions.Item label="Mã bệnh viện">
-                                <Text code>{hospital.code}</Text>
-                            </Descriptions.Item>
-
-                            <Descriptions.Item label="Loại hình">
-                                <Tag color={getTypeColor(hospital.type)}>
-                                    {getHospitalType(hospital.type)}
-                                </Tag>
-                            </Descriptions.Item>
-
-                            <Descriptions.Item label="Trạng thái">
-                                <Badge status="success" text="Hoạt động" />
-                            </Descriptions.Item>
-
-                            <Descriptions.Item label="Địa chỉ">
-                                <Space>
-                                    <EnvironmentOutlined />
-                                    <Text copyable>{hospital.address}</Text>
-                                </Space>
-                            </Descriptions.Item>
-
-                            <Descriptions.Item label="Giờ hoạt động">
-                                <Space>
-                                    <ClockCircleOutlined />
-                                    <Text>
-                                        {formatTime(hospital.openTime)} - {formatTime(hospital.closeTime)}
-                                    </Text>
-                                </Space>
-                            </Descriptions.Item>
-
-                            {hospital.phoneNumber && (
-                                <Descriptions.Item label="Số điện thoại">
-                                    <Space>
-                                        <PhoneOutlined />
-                                        <Text copyable>{hospital.phoneNumber}</Text>
-                                    </Space>
-                                </Descriptions.Item>
-                            )}
-
-                            {hospital.email && (
-                                <Descriptions.Item label="Email">
-                                    <Space>
-                                        <MailOutlined />
-                                        <Text copyable>{hospital.email}</Text>
-                                    </Space>
-                                </Descriptions.Item>
-                            )}
-
-                            <Descriptions.Item label="Vị trí">
-                                <Space>
-                                    <EnvironmentOutlined />
-                                    <Text>
-                                        Lat: {hospital.latitude}, Long: {hospital.longitude}
-                                    </Text>
-                                    {hospital.googleMapUri && (
-                                        <Button
-                                            type="link"
-                                            size="small"
-                                            onClick={() => window.open(hospital.googleMapUri, '_blank')}
-                                        >
-                                            Xem trên Google Maps
-                                        </Button>
+        <>
+            {contextHolder}
+            
+            <div className="hospital-detail-container">
+                {/* Header Section */}
+                <Card className="hospital-header-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                            <Avatar
+                                size={80}
+                                src={hospital.image}
+                                icon={<BankOutlined />}
+                                style={{
+                                    backgroundColor: '#1890ff',
+                                    marginRight: 24
+                                }}
+                            />
+                            <div>
+                                <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
+                                    {hospital.name}
+                                </Title>
+                                <Space style={{ marginTop: 8 }}>
+                                    <Tag color={getTypeColor(hospital.type)} icon={<MedicineBoxOutlined />}>
+                                        {getHospitalType(hospital.type)}
+                                    </Tag>
+                                    <Tag color="green" icon={<SafetyOutlined />}>
+                                        Đang hoạt động
+                                    </Tag>
+                                    {hospital.code && (
+                                        <Tag color="default">Mã: {hospital.code}</Tag>
                                     )}
                                 </Space>
-                            </Descriptions.Item>
-                        </Descriptions>
-                    </Card>
-
-                    {/* Services Section */}
-                    <Card
-                        title={
-                            <Space>
-                                <MedicineBoxOutlined />
-                                Dịch vụ bệnh viện ({hospital.services?.length || 0})
-                            </Space>
-                        }
-                    >
-                        <Table
-                            dataSource={hospital.services || []}
-                            columns={serviceColumns}
-                            rowKey="id"
-                            pagination={{
-                                pageSize: 10,
-                                showSizeChanger: true,
-                                showQuickJumper: true,
-                                showTotal: (total, range) =>
-                                    `${range[0]}-${range[1]} trong ${total} dịch vụ`,
-                            }}
-                            scroll={{ x: 400 }}
-                        />
-                    </Card>
-                </Col>
-
-                <Col xs={24} lg={8}>
-                    {/* Admin Information */}
-                    <Card
-                        title={
-                            <Space>
-                                <UserOutlined />
-                                Quản trị viên
-                            </Space>
-                        }
-                        style={{ marginBottom: 16 }}
-                    >
-                        <div style={{ textAlign: 'center' }}>
-                            <Avatar
-                                size={64}
-                                src={user?.avatarUrl}
-                                icon={<UserOutlined />}
-                            />
-                            <div style={{ marginTop: 16 }}>
-                                <Title level={4} style={{ margin: 0 }}>
-                                    {user?.fullname || 'Quản trị viên bệnh viện'}
-                                </Title>
-                                <Text type="secondary">Quản trị viên bệnh viện</Text>
                                 <div style={{ marginTop: 8 }}>
-                                    <Text copyable>
-                                        {user?.email || 'admin@hospital.com'}
+                                    <Space>
+                                        <ClockCircleOutlined />
+                                        <Text>
+                                            {formatTime(hospital.openTime)} - {formatTime(hospital.closeTime)}
+                                        </Text>
+                                    </Space>
+                                </div>
+                            </div>
+                        </div>
+                        <Button
+                            type="primary"
+                            icon={<EditOutlined />}
+                            onClick={() => {
+                                dispatch(setMessage({
+                                    type: 'info',
+                                    content: 'Đang mở form chỉnh sửa thông tin bệnh viện...'
+                                }));
+                                setEditModalVisible(true);
+                            }}
+                        >
+                            Chỉnh sửa Bệnh viện
+                        </Button>
+                    </div>
+                </Card>
+
+                {/* Statistics Section */}
+                <Row gutter={16} style={{ marginBottom: 24 }}>
+                    <Col xs={24} sm={6}>
+                        <Card>
+                            <Statistic
+                                title="Tổng dịch vụ"
+                                value={hospital.services?.length || 0}
+                                prefix={<MedicineBoxOutlined />}
+                                valueStyle={{ color: '#1890ff' }}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={6}>
+                        <Card>
+                            <Statistic
+                                title="ID Bệnh viện"
+                                value={hospital.id}
+                                prefix={<BankOutlined />}
+                                valueStyle={{ color: '#3f8600' }}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={6}>
+                        <Card>
+                            <Statistic
+                                title="Loại bệnh viện"
+                                value={hospital.type}
+                                prefix={<SafetyOutlined />}
+                                valueStyle={{ color: '#722ed1' }}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={6}>
+                        <Card>
+                            <Statistic
+                                title="Giá trung bình"
+                                value={hospital.services?.length > 0 ?
+                                    (hospital.services.reduce((sum, service) => sum + service.price, 0) / hospital.services.length).toFixed(0) : 0
+                                }
+                                prefix={<DollarOutlined />}
+                                suffix="VNĐ"
+                                valueStyle={{ color: '#faad14' }}
+                            />
+                        </Card>
+                    </Col>
+                </Row>
+
+                {/* Main Information */}
+                <Row gutter={16}>
+                    <Col xs={24} lg={16}>
+                        <Card
+                            title={
+                                <Space>
+                                    <HomeOutlined />
+                                    Thông tin bệnh viện
+                                </Space>
+                            }
+                            style={{ marginBottom: 16 }}
+                        >
+                            <Descriptions column={1} bordered>
+                                <Descriptions.Item label="Tên bệnh viện">
+                                    {hospital.name}
+                                </Descriptions.Item>
+
+                                <Descriptions.Item label="ID Bệnh viện">
+                                    <Text code>{hospital.id}</Text>
+                                </Descriptions.Item>
+
+                                <Descriptions.Item label="Mã bệnh viện">
+                                    <Text code>{hospital.code}</Text>
+                                </Descriptions.Item>
+
+                                <Descriptions.Item label="Loại hình">
+                                    <Tag color={getTypeColor(hospital.type)}>
+                                        {getHospitalType(hospital.type)}
+                                    </Tag>
+                                </Descriptions.Item>
+
+                                <Descriptions.Item label="Trạng thái">
+                                    <Badge status="success" text="Hoạt động" />
+                                </Descriptions.Item>
+
+                                <Descriptions.Item label="Địa chỉ">
+                                    <Space>
+                                        <EnvironmentOutlined />
+                                        <Text copyable>{hospital.address}</Text>
+                                    </Space>
+                                </Descriptions.Item>
+
+                                <Descriptions.Item label="Giờ hoạt động">
+                                    <Space>
+                                        <ClockCircleOutlined />
+                                        <Text>
+                                            {formatTime(hospital.openTime)} - {formatTime(hospital.closeTime)}
+                                        </Text>
+                                    </Space>
+                                </Descriptions.Item>
+
+                                {hospital.phoneNumber && (
+                                    <Descriptions.Item label="Số điện thoại">
+                                        <Space>
+                                            <PhoneOutlined />
+                                            <Text copyable>{hospital.phoneNumber}</Text>
+                                        </Space>
+                                    </Descriptions.Item>
+                                )}
+
+                                {hospital.email && (
+                                    <Descriptions.Item label="Email">
+                                        <Space>
+                                            <MailOutlined />
+                                            <Text copyable>{hospital.email}</Text>
+                                        </Space>
+                                    </Descriptions.Item>
+                                )}
+
+                                <Descriptions.Item label="Vị trí">
+                                    <Space>
+                                        <EnvironmentOutlined />
+                                        <Text>
+                                            Lat: {hospital.latitude}, Long: {hospital.longitude}
+                                        </Text>
+                                        {hospital.googleMapUri && (
+                                            <Button
+                                                type="link"
+                                                size="small"
+                                                onClick={() => window.open(hospital.googleMapUri, '_blank')}
+                                            >
+                                                Xem trên Google Maps
+                                            </Button>
+                                        )}
+                                    </Space>
+                                </Descriptions.Item>
+                            </Descriptions>
+                        </Card>
+
+                        {/* Services Section */}
+                        <Card
+                            title={
+                                <Space>
+                                    <MedicineBoxOutlined />
+                                    Dịch vụ bệnh viện ({hospital.services?.length || 0})
+                                </Space>
+                            }
+                        >
+                            <Table
+                                dataSource={hospital.services || []}
+                                columns={serviceColumns}
+                                rowKey="id"
+                                pagination={{
+                                    pageSize: 10,
+                                    showSizeChanger: true,
+                                    showQuickJumper: true,
+                                    showTotal: (total, range) =>
+                                        `${range[0]}-${range[1]} trong ${total} dịch vụ`,
+                                }}
+                                scroll={{ x: 400 }}
+                            />
+                        </Card>
+                    </Col>
+
+                    <Col xs={24} lg={8}>
+                        {/* Admin Information */}
+                        <Card
+                            title={
+                                <Space>
+                                    <UserOutlined />
+                                    Quản trị viên
+                                </Space>
+                            }
+                            style={{ marginBottom: 16 }}
+                        >
+                            <div style={{ textAlign: 'center' }}>
+                                <Avatar
+                                    size={64}
+                                    src={user?.avatarUrl}
+                                    icon={<UserOutlined />}
+                                />
+                                <div style={{ marginTop: 16 }}>
+                                    <Title level={4} style={{ margin: 0 }}>
+                                        {user?.fullname || 'Quản trị viên bệnh viện'}
+                                    </Title>
+                                    <Text type="secondary">Quản trị viên bệnh viện</Text>
+                                    <div style={{ marginTop: 8 }}>
+                                        <Text copyable>
+                                            {user?.email || 'admin@hospital.com'}
+                                        </Text>
+                                    </div>
+                                    {user?.phoneNumber && (
+                                        <div style={{ marginTop: 4 }}>
+                                            <Text copyable>
+                                                {user.phoneNumber}
+                                            </Text>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </Card>
+
+                        {/* Working Schedule Section */}
+                        <Card
+                            title={
+                                <Space>
+                                    <ClockCircleOutlined />
+                                    Lịch làm việc
+                                </Space>
+                            }
+                            extra={
+                                <Button
+                                    type="primary"
+                                    size="small"
+                                    icon={<EditOutlined />}
+                                    onClick={handleOpenWorkingScheduleModal}
+                                >
+                                    {workingDates.length > 0 ? 'Sửa lịch' : 'Tạo lịch'}
+                                </Button>
+                            }
+                            style={{ marginBottom: 16 }}
+                        >
+                            {workingDates.length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {workingDates.map((workingDay) => (
+                                        <div
+                                            key={workingDay.dayOfWeek}
+                                            style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                padding: '8px 12px',
+                                                backgroundColor: '#f5f5f5',
+                                                borderRadius: '6px'
+                                            }}
+                                        >
+                                            <Text strong style={{ minWidth: '80px' }}>
+                                                {workingDay.dayOfWeekName}
+                                            </Text>
+                                            <div>
+                                                {getWorkingDayStatus(workingDay)}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div style={{ textAlign: 'center', padding: '20px' }}>
+                                    <Text type="secondary">Chưa có thông tin lịch làm việc</Text>
+                                </div>
+                            )}
+                        </Card>
+
+                        {/* Quick Stats */}
+                        <Card
+                            title={
+                                <Space>
+                                    <InfoCircleOutlined />
+                                    Thống kê nhanh
+                                </Space>
+                            }
+                        >
+                            <div style={{ textAlign: 'center' }}>
+                                <Row gutter={16}>
+                                    <Col span={12}>
+                                        <Statistic
+                                            title="Dịch vụ"
+                                            value={hospital.services?.length || 0}
+                                            valueStyle={{ fontSize: 20, color: '#1890ff' }}
+                                        />
+                                    </Col>
+                                    <Col span={12}>
+                                        <Statistic
+                                            title="ID Bệnh viện"
+                                            value={hospital.id}
+                                            valueStyle={{ fontSize: 20, color: '#52c41a' }}
+                                        />
+                                    </Col>
+                                </Row>
+                                <div style={{ marginTop: 16, padding: '16px', background: '#f5f5f5', borderRadius: '6px' }}>
+                                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                                        Bệnh viện đã được thành lập và đang hoạt động
                                     </Text>
                                 </div>
-                                {user?.phoneNumber && (
-                                    <div style={{ marginTop: 4 }}>
-                                        <Text copyable>
-                                            {user.phoneNumber}
-                                        </Text>
-                                    </div>
-                                )}
                             </div>
-                        </div>
-                    </Card>
-
-                    {/* Working Schedule Section */}
-                    <Card
-                        title={
-                            <Space>
-                                <ClockCircleOutlined />
-                                Lịch làm việc
-                            </Space>
-                        }
-                        extra={
-                            <Button
-                                type="primary"
-                                size="small"
-                                icon={<EditOutlined />}
-                                onClick={handleOpenWorkingScheduleModal}
-                            >
-                                {workingDates.length > 0 ? 'Sửa lịch' : 'Tạo lịch'}
-                            </Button>
-                        }
-                        style={{ marginBottom: 16 }}
-                    >
-                        {workingDates.length > 0 ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                {workingDates.map((workingDay) => (
-                                    <div
-                                        key={workingDay.dayOfWeek}
-                                        style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            padding: '8px 12px',
-                                            backgroundColor: '#f5f5f5',
-                                            borderRadius: '6px'
-                                        }}
-                                    >
-                                        <Text strong style={{ minWidth: '80px' }}>
-                                            {workingDay.dayOfWeekName}
-                                        </Text>
-                                        <div>
-                                            {getWorkingDayStatus(workingDay)}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div style={{ textAlign: 'center', padding: '20px' }}>
-                                <Text type="secondary">Chưa có thông tin lịch làm việc</Text>
-                            </div>
-                        )}
-                    </Card>
-
-                    {/* Quick Stats */}
-                    <Card
-                        title={
-                            <Space>
-                                <InfoCircleOutlined />
-                                Thống kê nhanh
-                            </Space>
-                        }
-                    >
-                        <div style={{ textAlign: 'center' }}>
-                            <Row gutter={16}>
-                                <Col span={12}>
-                                    <Statistic
-                                        title="Dịch vụ"
-                                        value={hospital.services?.length || 0}
-                                        valueStyle={{ fontSize: 20, color: '#1890ff' }}
-                                    />
-                                </Col>
-                                <Col span={12}>
-                                    <Statistic
-                                        title="ID Bệnh viện"
-                                        value={hospital.id}
-                                        valueStyle={{ fontSize: 20, color: '#52c41a' }}
-                                    />
-                                </Col>
-                            </Row>
-                            <div style={{ marginTop: 16, padding: '16px', background: '#f5f5f5', borderRadius: '6px' }}>
-                                <Text type="secondary" style={{ fontSize: '12px' }}>
-                                    Bệnh viện đã được thành lập và đang hoạt động
-                                </Text>
-                            </div>
-                        </div>
-                    </Card>
-                </Col>
-            </Row>
-
-            {/* Edit Modal */}
-            <EditHospital
-                visible={editModalVisible}
-                onCancel={() => setEditModalVisible(false)}
-                onSuccess={handleEditSuccess}
-                hospital={hospital}
-            />
-
-            {/* Working Schedule Modal */}
-            <Modal
-                title={
-                    <Space>
-                        <ClockCircleOutlined />
-                        {workingDates.length > 0 ? 'Sửa lịch làm việc' : 'Tạo lịch làm việc mới'}
-                    </Space>
-                }
-                open={workingScheduleModalVisible}
-                onCancel={() => setWorkingScheduleModalVisible(false)}
-                onOk={handleWorkingScheduleSubmit}
-                width={600}
-                okText="Lưu"
-                cancelText="Hủy"
-            >
-                <Form
-                    form={workingScheduleForm}
-                    layout="vertical"
-                >
-                    {getDefaultWorkingDates().map((day) => (
-                        <Card
-                            key={day.dayOfWeek}
-                            size="small"
-                            style={{ marginBottom: 16 }}
-                            title={<Text strong>{day.dayOfWeekName}</Text>}
-                        >
-                            <Row gutter={16} align="middle">
-                                <Col span={6}>
-                                    <Form.Item
-                                        name={`day_${day.dayOfWeek}_isClosed`}
-                                        label="Đóng cửa"
-                                        valuePropName="checked"
-                                    >
-                                        <Switch />
-                                    </Form.Item>
-                                </Col>
-                                <Col span={9}>
-                                    <Form.Item
-                                        name={`day_${day.dayOfWeek}_startTime`}
-                                        label="Giờ mở cửa"
-                                        dependencies={[`day_${day.dayOfWeek}_isClosed`]}
-                                    >
-                                        <TimePicker
-                                            format="HH:mm"
-                                            placeholder="Chọn giờ mở"
-                                            style={{ width: '100%' }}
-                                            disabled={
-                                                workingScheduleForm.getFieldValue(`day_${day.dayOfWeek}_isClosed`)
-                                            }
-                                        />
-                                    </Form.Item>
-                                </Col>
-                                <Col span={9}>
-                                    <Form.Item
-                                        name={`day_${day.dayOfWeek}_endTime`}
-                                        label="Giờ đóng cửa"
-                                        dependencies={[`day_${day.dayOfWeek}_isClosed`]}
-                                    >
-                                        <TimePicker
-                                            format="HH:mm"
-                                            placeholder="Chọn giờ đóng"
-                                            style={{ width: '100%' }}
-                                            disabled={
-                                                workingScheduleForm.getFieldValue(`day_${day.dayOfWeek}_isClosed`)
-                                            }
-                                        />
-                                    </Form.Item>
-                                </Col>
-                            </Row>
                         </Card>
-                    ))}
-                </Form>
-            </Modal>
-        </div>
+                    </Col>
+                </Row>
+
+                {/* Edit Modal */}
+                <EditHospital
+                    visible={editModalVisible}
+                    onCancel={() => {
+                        dispatch(setMessage({
+                            type: 'info',
+                            content: 'Đã hủy chỉnh sửa thông tin bệnh viện'
+                        }));
+                        setEditModalVisible(false);
+                    }}
+                    onSuccess={handleEditSuccess}
+                    hospital={hospital}
+                />
+
+                {/* Working Schedule Modal */}
+                <Modal
+                    title={
+                        <Space>
+                            <ClockCircleOutlined />
+                            {workingDates.length > 0 ? 'Sửa lịch làm việc' : 'Tạo lịch làm việc mới'}
+                        </Space>
+                    }
+                    open={workingScheduleModalVisible}
+                    onCancel={handleWorkingScheduleCancel}
+                    onOk={handleWorkingScheduleSubmit}
+                    width={600}
+                    okText="Lưu"
+                    cancelText="Hủy"
+                >
+                    <Form
+                        form={workingScheduleForm}
+                        layout="vertical"
+                    >
+                        {getDefaultWorkingDates().map((day) => (
+                            <Card
+                                key={day.dayOfWeek}
+                                size="small"
+                                style={{ marginBottom: 16 }}
+                                title={<Text strong>{day.dayOfWeekName}</Text>}
+                            >
+                                <Row gutter={16} align="middle">
+                                    <Col span={6}>
+                                        <Form.Item
+                                            name={`day_${day.dayOfWeek}_isClosed`}
+                                            label="Đóng cửa"
+                                            valuePropName="checked"
+                                        >
+                                            <Switch />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={9}>
+                                        <Form.Item
+                                            name={`day_${day.dayOfWeek}_startTime`}
+                                            label="Giờ mở cửa"
+                                            dependencies={[`day_${day.dayOfWeek}_isClosed`]}
+                                        >
+                                            <TimePicker
+                                                format="HH:mm"
+                                                placeholder="Chọn giờ mở"
+                                                style={{ width: '100%' }}
+                                                disabled={
+                                                    workingScheduleForm.getFieldValue(`day_${day.dayOfWeek}_isClosed`)
+                                                }
+                                            />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={9}>
+                                        <Form.Item
+                                            name={`day_${day.dayOfWeek}_endTime`}
+                                            label="Giờ đóng cửa"
+                                            dependencies={[`day_${day.dayOfWeek}_isClosed`]}
+                                        >
+                                            <TimePicker
+                                                format="HH:mm"
+                                                placeholder="Chọn giờ đóng"
+                                                style={{ width: '100%' }}
+                                                disabled={
+                                                    workingScheduleForm.getFieldValue(`day_${day.dayOfWeek}_isClosed`)
+                                                }
+                                            />
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+                            </Card>
+                        ))}
+                    </Form>
+                </Modal>
+            </div>
+        </>
     );
 };
 

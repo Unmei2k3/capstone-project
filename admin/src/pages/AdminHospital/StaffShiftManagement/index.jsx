@@ -44,13 +44,14 @@ const { Option, OptGroup } = Select;
 const { RangePicker } = DatePicker;
 
 const weekdayOptions = [
-  { label: "Chủ nhật", value: 0 },
+
   { label: "Thứ 2", value: 1 },
   { label: "Thứ 3", value: 2 },
   { label: "Thứ 4", value: 3 },
   { label: "Thứ 5", value: 4 },
   { label: "Thứ 6", value: 5 },
   { label: "Thứ 7", value: 6 },
+  { label: "Chủ nhật", value: 0 }
 ];
 
 dayjs.extend(customParseFormat);
@@ -479,7 +480,9 @@ const StaffShiftManagement = () => {
       dispatch(setMessage({ type: 'error', content: 'Xảy ra lỗi khi lưu ca làm việc!' }));
     }
   };
-
+  const closedDays = React.useMemo(() => {
+    return workingDates.filter(d => d.isClosed).map(d => d.dayOfWeek);
+  }, [workingDates]);
 
   const renderEventContent = (eventInfo) => {
     const { title, extendedProps } = eventInfo.event;
@@ -560,72 +563,79 @@ const StaffShiftManagement = () => {
       </div>
     );
   };
+
   const onFinishBulk = async (values) => {
     const { staffIds, weekdays, shift, dateRange } = values;
 
     if (!staffIds || staffIds.length === 0) {
-      message.error("Vui lòng chọn Nhân viên");
+      dispatch(setMessage({ type: 'error', content: 'Vui lòng chọn nhân viên!' }));
       return;
     }
     if (!weekdays || weekdays.length === 0) {
-      message.error("Vui lòng chọn ngày trong tuần");
+      dispatch(setMessage({ type: 'error', content: 'Vui lòng chọn ngày trong tuần!' }));
       return;
     }
     if (!shift || shift.length === 0) {
-      message.error("Vui lòng chọn ca làm");
+      dispatch(setMessage({ type: 'error', content: 'Vui lòng chọn ca làm!' }));
       return;
     }
     if (!dateRange || dateRange.length !== 2) {
-      message.error("Vui lòng chọn khoảng thời gian");
+      dispatch(setMessage({ type: 'error', content: 'Vui lòng chọn khoảng thời gian!' }));
       return;
     }
 
     try {
       for (const dayOfWeek of weekdays) {
         const shiftTimesMap = getShiftTimesByDay(dayOfWeek);
-
-        const validShifts = shift.every((sh) => {
+        const validShifts = shift.every(sh => {
           const times = shiftTimesMap[sh];
-          return times && times.startTime && times.endTime && times.startTime !== "00:00:00" && times.endTime !== "00:00:00";
+          return times &&
+            times.startTime &&
+            times.endTime &&
+            times.startTime.trim() !== "00:00:00" &&
+            times.endTime.trim() !== "00:00:00";
         });
 
         if (!validShifts) {
           dispatch(setMessage({
-            type: "error",
-            content: `Ngày ${weekdayOptions.find(d => d.value === dayOfWeek)?.label || dayOfWeek} không hỗ trợ ca làm đã chọn do bệnh viện đóng cửa hoặc thời gian không hợp lệ.`
+            type: 'error',
+            content: `Ngày ${weekdayOptions.find(d => d.value === dayOfWeek)?.label || dayOfWeek} không hỗ trợ ca làm đã chọn do bệnh viện đóng cửa hoặc thời gian không hợp lệ.`,
           }));
           return;
         }
-
-        const shiftsPayload = shift.map((sh) => ({
-          startTime: shiftTimesMap[sh].startTime,
-          endTime: shiftTimesMap[sh].endTime,
-        }));
-
-        for (const userId of staffIds) {
-          const payload = {
-            staffIds: [userId],
-            hospitalId: user.hospitals[0]?.id,
-            daysOfWeek: [dayOfWeek],
-            shifts: shiftsPayload,
-            startDate: dateRange[0].format("YYYY-MM-DD"),
-            endDate: dateRange[1].format("YYYY-MM-DD"),
-            isAvailable: true,
-            reasonOfUnavailability: "",
-          };
-
-          console.log("Bulk create payload:", JSON.stringify(payload));
-          await createStaffSchedules(payload);
-        }
       }
 
-      dispatch(setMessage({ type: "success", content: "Tạo ca làm việc thành công!" }));
+      const firstDayShiftTimesMap = getShiftTimesByDay(weekdays[0]);
+      const shiftsPayload = shift.map(sh => {
+        const times = firstDayShiftTimesMap[sh];
+        return {
+          startTime: times.startTime,
+          endTime: times.endTime,
+        };
+      });
+
+      const payload = {
+        staffIds,
+        hospitalId: user?.hospitals?.[0]?.id || 0,
+        daysOfWeek: weekdays,
+        shifts: shiftsPayload,
+        startDate: dateRange[0].format("YYYY-MM-DD"),
+        endDate: dateRange[1].format("YYYY-MM-DD"),
+        isAvailable: true,
+        reasonOfUnavailability: "",
+      };
+
+      console.log("Bulk create staff schedule payload:", JSON.stringify(payload));
+
+      await createStaffSchedules(payload);
+
+      dispatch(setMessage({ type: 'success', content: 'Tạo lịch làm việc thành công!' }));
       bulkForm.resetFields();
-      setFlag((prev) => !prev);
+      setFlag(prev => !prev);
 
     } catch (error) {
-      console.error("Lỗi tạo lịch mẫu:", error);
-      dispatch(setMessage({ type: "error", content: "Xảy ra lỗi khi tạo ca làm việc!" }));
+      console.error("Lỗi khi tạo lịch làm việc:", error);
+      dispatch(setMessage({ type: 'error', content: 'Tạo lịch làm việc thất bại, vui lòng thử lại sau!' }));
     }
   };
 
@@ -786,7 +796,12 @@ const StaffShiftManagement = () => {
                       label="Ngày trong tuần"
                       rules={[{ required: true, message: "Vui lòng chọn ngày trong tuần." }]}
                     >
-                      <Checkbox.Group options={weekdayOptions} />
+                      <Checkbox.Group
+                        options={weekdayOptions.map(opt => ({
+                          ...opt,
+                          disabled: closedDays.includes(opt.value),
+                        }))}
+                      />
                     </Form.Item>
 
                     <Form.Item
@@ -958,7 +973,7 @@ const StaffShiftManagement = () => {
 
                   </Col>
                   <Col span={12}>
-                  
+
                     {form.getFieldValue("workDate") ? (() => {
                       const dayOfWeek = dayjs(form.getFieldValue("workDate")).day();
                       const times = getShiftTimesByDay(dayOfWeek);

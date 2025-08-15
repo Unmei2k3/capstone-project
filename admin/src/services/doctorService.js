@@ -177,21 +177,23 @@ export const createDoctor = async (doctorData) => {
 };
 
 // Update doctor
-export const updateDoctor = async (id, doctorData) => {
+export const updateDoctor = async (updateData) => {
   try {
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      return {
-        ...doctorData,
-        id,
-        updatedAt: new Date().toISOString()
-      };
-    }
+    console.log('📤 Sending updateDoctor request to /api/v1/doctors/update');
+    console.log('📤 Update data:', JSON.stringify(updateData, null, 2));
 
-    const response = putAuth(`/doctors`, doctorData);
+    // ✅ Use correct endpoint from swagger
+    const response = await api.put('/doctors/update', updateData);
+
+    console.log('✅ UpdateDoctor response:', response.data);
     return response.data;
+
   } catch (error) {
-    console.error('Error updating doctor:', error);
+    console.error('❌ UpdateDoctor error:', error);
+    console.error('❌ Error response:', error.response?.data);
+    console.error('❌ Error status:', error.response?.status);
+    console.error('❌ Request URL:', error.config?.url);
+    console.error('❌ Request method:', error.config?.method);
     throw error;
   }
 };
@@ -199,9 +201,9 @@ export const updateDoctor = async (id, doctorData) => {
 // Delete doctor
 export const deleteDoctor = async (id) => {
   try {
-    
 
-    const response = await deleteAuth(`/doctors`,id);
+
+    const response = await deleteAuth(`/doctors`, id);
     return response.data;
   } catch (error) {
     console.error('Error deleting doctor:', error);

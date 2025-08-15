@@ -1,0 +1,7 @@
+.fc-event-cancelled {
+  opacity: 0.5;
+  pointer-events: none; /* tránh chọn nhầm */
+}
+.fc-event-completed {
+  opacity: 0.7;
+}

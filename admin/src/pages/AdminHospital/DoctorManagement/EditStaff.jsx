@@ -9,7 +9,8 @@ import {
   Button,
   Spin,
   DatePicker,
-  message
+  message,
+  ConfigProvider
 } from 'antd';
 import {
   EditOutlined,
@@ -18,27 +19,31 @@ import {
   MedicineBoxOutlined
 } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { setMessage } from '../../../redux/slices/messageSlice';
-import { updateDoctor } from '../../../services/doctorService';
+import { setMessage, clearMessage } from '../../../redux/slices/messageSlice';
+import { getDoctorDetail, updateDoctor } from '../../../services/doctorService';
 import { updateUser } from '../../../services/userService';
 import { getProvinces } from '../../../services/provinceService';
-import { getHospitalById, getSpecializationsByHospitalId } from '../../../services/hospitalService';
-import { getDepartmentsByHospitalId } from '../../../services/departmentService';
+import { getSpecializationsByHospitalId } from '../../../services/specializationService';
+import { getAllDepartments } from '../../../services/departmentService';
 import dayjs from 'dayjs';
+import 'dayjs/locale/vi';
+import locale from 'antd/locale/vi_VN';
+
+// ✅ Set dayjs locale to Vietnamese
+dayjs.locale('vi');
 
 const { Option } = Select;
 const { TextArea } = Input;
 
-const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepartments, specializations: propSpecializations }) => {
+const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(false);
 
-  // Hospital-specific states
-  const [currentHospital, setCurrentHospital] = useState(null);
+  // Data states
   const [hospitalSpecializations, setHospitalSpecializations] = useState([]);
-  const [hospitalDepartments, setHospitalDepartments] = useState([]);
-  const [departmentsLoading, setDepartmentsLoading] = useState(false);
-  const [specializationsLoading, setSpecializationsLoading] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [doctorDetail, setDoctorDetail] = useState(null);
 
   // Address states
   const [provinces, setProvinces] = useState([]);
@@ -46,18 +51,38 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
   const [selectedProvince, setSelectedProvince] = useState(null);
 
   const dispatch = useDispatch();
+  const [messageApi, contextHolder] = message.useMessage();
+  const messageState = useSelector((state) => state.message);
   const user = useSelector((state) => state.user.user);
+  const hospitalId = user?.hospitals?.[0]?.id;
 
-  // ✅ Fetch provinces once
+  // Handle Redux messages
   useEffect(() => {
-    getProvinces()
-      .then((data) => setProvinces(data.data))
-      .catch((err) => console.error("Error fetching provinces:", err));
+    if (messageState) {
+      messageApi.open({
+        type: messageState.type,
+        content: messageState.content,
+      });
+      dispatch(clearMessage());
+    }
+  }, [messageState, messageApi, dispatch]);
+
+  // Load provinces once
+  useEffect(() => {
+    const loadProvinces = async () => {
+      try {
+        const data = await getProvinces();
+        setProvinces(data.data || []);
+      } catch (err) {
+        console.error("Lỗi khi tải tỉnh thành:", err);
+      }
+    };
+    loadProvinces();
   }, []);
 
-  // ✅ Load wards when province changes
+  // Load wards when province changes
   useEffect(() => {
-    if (selectedProvince) {
+    if (selectedProvince && provinces.length > 0) {
       const provinceObj = provinces.find((p) => p.province === selectedProvince);
       setWards(provinceObj?.wards || []);
     } else {
@@ -65,882 +90,829 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff, departments: propDepar
     }
   }, [selectedProvince, provinces]);
 
-  // ✅ Fetch hospital data
-  const fetchHospitalData = async () => {
-    if (!user?.hospitals?.[0]?.id) {
-      console.warn('No hospital ID found for user');
-      return;
-    }
-
-    setDepartmentsLoading(true);
-    setSpecializationsLoading(true);
-
+  // Load departments
+  const loadDepartments = async () => {
     try {
-      const hospitalId = user.hospitals[0].id;
-      console.log('🏥 Fetching data for hospital ID:', hospitalId);
-
-      const [hospital, specs, depts] = await Promise.all([
-        getHospitalById(hospitalId),
-        getSpecializationsByHospitalId(hospitalId),
-        getDepartmentsByHospitalId(hospitalId)
-      ]);
-
-      setCurrentHospital(hospital);
-      setHospitalSpecializations(specs);
-      setHospitalDepartments(depts);
-
-      console.log('🏥 Current hospital set:', hospital);
-      console.log('🩺 Hospital specializations set:', specs);
-      console.log('🏢 Hospital departments set:', depts);
-
+      const response = await getAllDepartments();
+      const deptData = Array.isArray(response) ? response : (response?.data || []);
+      setDepartments(deptData);
+      return deptData;
     } catch (error) {
-      console.error('❌ Error fetching hospital data:', error);
-
-      // Fallback
-      const fallbackHospitalId = user?.hospitals?.[0]?.id || 105;
-      setCurrentHospital({
-        id: fallbackHospitalId,
-        name: user?.hospitals?.[0]?.name || 'Default Hospital',
-        address: 'Unknown'
-      });
-
-      setHospitalSpecializations(propSpecializations || []);
-      setHospitalDepartments(propDepartments || []);
-
-      message.warning('Could not load hospital data. Using default values.');
-    } finally {
-      setDepartmentsLoading(false);
-      setSpecializationsLoading(false);
+      console.error('Lỗi khi tải departments:', error);
+      return [];
     }
   };
 
-  // ✅ SINGLE useEffect để set form data - Remove duplicate
-  useEffect(() => {
-    if (staff && visible && provinces.length > 0) {
-      console.log("🔧 EditStaff initializing with staff:", staff);
-
-      // ✅ Parse và prepare form data với better error handling
-      const prepareFormData = () => {
-        let formData = {};
-
-        try {
-          if (staff.originalData) {
-            const { doctor, user } = staff.originalData;
-            console.log("📊 Using originalData structure:", { doctor, user });
-
-            // ✅ Parse DOB với multiple format support
-            let dobValue = null;
-            const dobSource = user.dob || staff.dob;
-            if (dobSource) {
-              console.log("🗓️ Parsing DOB:", dobSource, typeof dobSource);
-              try {
-                if (typeof dobSource === 'string') {
-                  if (dobSource.includes('T')) {
-                    dobValue = dayjs(dobSource); // ISO format
-                  } else if (dobSource.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    dobValue = dayjs(dobSource, 'YYYY-MM-DD'); // Date only
-                  } else {
-                    dobValue = dayjs(dobSource); // Other formats
-                  }
-                } else {
-                  dobValue = dayjs(dobSource);
-                }
-
-                if (!dobValue.isValid()) {
-                  console.warn("⚠️ Invalid DOB, setting to null");
-                  dobValue = null;
-                } else {
-                  console.log("✅ DOB parsed:", dobValue.format('YYYY-MM-DD'));
-                }
-              } catch (error) {
-                console.error("❌ Error parsing DOB:", error);
-                dobValue = null;
-              }
-            }
-
-            // ✅ Parse practicing date
-            let practicingFromValue = null;
-            const practicingSource = doctor.practicingFrom || staff.practicingFrom;
-            if (practicingSource) {
-              console.log("🏥 Parsing practicingFrom:", practicingSource);
-              try {
-                practicingFromValue = dayjs(practicingSource);
-                if (!practicingFromValue.isValid()) {
-                  practicingFromValue = null;
-                } else {
-                  console.log("✅ PracticingFrom parsed:", practicingFromValue.format('YYYY-MM-DD'));
-                }
-              } catch (error) {
-                console.error("❌ Error parsing practicingFrom:", error);
-                practicingFromValue = null;
-              }
-            }
-
-            formData = {
-              // ✅ Basic Information
-              fullname: user.fullname || staff.fullname || staff.name || "",
-              email: user.email || staff.email || "",
-              phoneNumber: user.phoneNumber || staff.phoneNumber || staff.phone || "",
-              gender: typeof user.gender === 'boolean'
-                ? (user.gender ? 'male' : 'female')
-                : (user.gender === 'male' ? 'male' : 'female'),
-              dob: dobValue,
-              cccd: user.cccd || staff.cccd || "",
-              avatarUrl: user.avatarUrl || staff.avatarUrl || staff.avatar || "",
-              job: user.job || 'Doctor',
-
-              // ✅ Address Information
-              province: user.province || staff.province || "",
-              ward: user.ward || staff.ward || "",
-              streetAddress: user.streetAddress || staff.streetAddress || "",
-
-              // ✅ Professional Information
-              departmentId: staff.departmentId || null,
-              specializationIds: staff.specializationIds || [],
-              description: doctor.description || staff.description || "",
-              practicingFrom: practicingFromValue,
-
-              // ✅ Hospital affiliations
-              hospitalAffiliations: staff.hospitalAffiliations || []
-            };
-
-          } else {
-            // ✅ Handle direct staff object structure
-            console.log("📊 Using direct staff structure");
-
-            let dobValue = null;
-            if (staff.dob) {
-              try {
-                dobValue = dayjs(staff.dob);
-                if (!dobValue.isValid()) dobValue = null;
-              } catch (error) {
-                console.error("❌ Error parsing staff DOB:", error);
-                dobValue = null;
-              }
-            }
-
-            let practicingFromValue = null;
-            if (staff.practicingFrom) {
-              try {
-                practicingFromValue = dayjs(staff.practicingFrom);
-                if (!practicingFromValue.isValid()) practicingFromValue = null;
-              } catch (error) {
-                practicingFromValue = null;
-              }
-            }
-
-            formData = {
-              fullname: staff.fullname || staff.name || "",
-              email: staff.email || "",
-              phoneNumber: staff.phoneNumber || staff.phone || "",
-              gender: typeof staff.gender === 'boolean'
-                ? (staff.gender ? 'male' : 'female')
-                : (staff.gender === 'male' ? 'male' : 'female'),
-              dob: dobValue,
-              cccd: staff.cccd || "",
-              avatarUrl: staff.avatarUrl || staff.avatar || "",
-              job: 'Doctor',
-              province: staff.province || "",
-              ward: staff.ward || "",
-              streetAddress: staff.streetAddress || "",
-              departmentId: staff.departmentId || null,
-              specializationIds: staff.specializationIds || [],
-              description: staff.description || "",
-              practicingFrom: practicingFromValue,
-              hospitalAffiliations: staff.hospitalAffiliations || []
-            };
-          }
-
-          return formData;
-
-        } catch (error) {
-          console.error("❌ Error preparing form data:", error);
-          // ✅ Return minimal safe data
-          return {
-            fullname: staff.fullname || staff.name || "",
-            email: staff.email || "",
-            phoneNumber: staff.phoneNumber || staff.phone || "",
-            gender: 'male',
-            dob: null,
-            cccd: "",
-            avatarUrl: "",
-            job: 'Doctor',
-            province: "",
-            ward: "",
-            streetAddress: "",
-            departmentId: null,
-            specializationIds: [],
-            description: "",
-            practicingFrom: null,
-            hospitalAffiliations: []
-          };
-        }
-      };
-
-      const formData = prepareFormData();
-
-      console.log("📝 Final form data to set:", formData);
-      console.log("🗓️ DOB value:", formData.dob, formData.dob?.format?.('YYYY-MM-DD'));
-      console.log("🏥 Department ID:", formData.departmentId);
-      console.log("🩺 Specialization IDs:", formData.specializationIds);
-
-      // ✅ Set form values
-      form.setFieldsValue(formData);
-
-      // ✅ Set selected province để load wards
-      if (formData.province) {
-        setSelectedProvince(formData.province);
-      }
-
-      // ✅ Fetch hospital data sau khi set form
-      fetchHospitalData();
-
-    }
-  }, [staff, visible, provinces, form]); // ✅ Proper dependencies
-
-  // ✅ Handle form values change
-  const onFormValuesChange = (changedValues) => {
-    console.log("📝 Form values changed:", changedValues);
-
-    if ("province" in changedValues) {
-      const newProvince = changedValues.province || null;
-      setSelectedProvince(newProvince);
-
-      // ✅ Clear ward when province changes
-      if (newProvince !== selectedProvince) {
-        form.setFieldsValue({ ward: undefined });
-      }
-    }
-  };
-
-  // ✅ Enhanced handleSubmit với better validation
-  const handleSubmit = async (values) => {
-    setLoading(true);
-
-    // Determine staff type outside try block for error handling
-    const isDoctor = staff.type === 'doctor' || staff.editApiType === 'updateDoctor';
-    const isNurse = staff.type === 'nurse' || staff.editApiType === 'updateUser';
-    const staffTypeText = isDoctor ? 'bác sĩ' : 'y tá';
+  // Load specializations
+  const loadSpecializations = async () => {
+    if (!hospitalId) return [];
 
     try {
-      console.log('🔄 Starting update process for staff ID:', staff.id);
-      console.log('📝 Form values received:', values);
-      console.log('👤 Staff type:', staff.type || staff.editApiType);
+      const response = await getSpecializationsByHospitalId(hospitalId);
+      setHospitalSpecializations(response || []);
+      return response || [];
+    } catch (error) {
+      console.error('Lỗi khi tải specializations:', error);
+      return [];
+    }
+  };
 
-      // ✅ Pre-submit validation
-      if (!values.dob) {
-        message.error('Date of birth is required');
-        setLoading(false);
+  // ✅ Enhanced date parsing function
+  const safeParseDob = (dateValue) => {
+    console.log('🔍 Parsing date value:', dateValue, 'Type:', typeof dateValue);
+
+    if (!dateValue) {
+      console.log('❌ Date value is null/undefined');
+      return null;
+    }
+
+    try {
+      let parsedDate;
+
+      if (typeof dateValue === 'string') {
+        // Handle different date formats
+        if (dateValue.includes('T')) {
+          // ISO format: "2025-08-14T10:46:54.305"
+          console.log('📅 Parsing ISO format:', dateValue);
+          parsedDate = dayjs(dateValue);
+        } else if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          // Date only format: "2000-02-02"
+          console.log('📅 Parsing YYYY-MM-DD format:', dateValue);
+          parsedDate = dayjs(dateValue, 'YYYY-MM-DD');
+        } else if (dateValue.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+          // DD/MM/YYYY format
+          console.log('📅 Parsing DD/MM/YYYY format:', dateValue);
+          parsedDate = dayjs(dateValue, 'DD/MM/YYYY');
+        } else {
+          console.log('📅 Parsing general format:', dateValue);
+          parsedDate = dayjs(dateValue);
+        }
+      } else {
+        console.log('📅 Parsing non-string date:', dateValue);
+        parsedDate = dayjs(dateValue);
+      }
+
+      const isValid = parsedDate.isValid();
+      console.log('✅ Date parsed successfully:', parsedDate.format('DD/MM/YYYY'), 'Valid:', isValid);
+
+      return isValid ? parsedDate : null;
+    } catch (error) {
+      console.error("❌ Lỗi khi parse date:", error);
+      return null;
+    }
+  };
+
+  // ✅ Main modal initialization - FIXED logic
+  useEffect(() => {
+    const initializeEditModal = async () => {
+      if (!visible || !staff) {
         return;
       }
 
-      if (isDoctor) {
-        if (!values.departmentId) {
-          message.error('Department selection is required');
-          setLoading(false);
-          return;
+      setInitialLoading(true);
+
+
+
+      try {
+        // Load basic data first
+        console.log('🔄 Loading departments and specializations...');
+        const [deptData, specData] = await Promise.all([
+          loadDepartments(),
+          loadSpecializations()
+        ]);
+
+        const isDoctor = staff.type === 'doctor' || staff.editApiType === 'updateDoctor';
+        console.log('👨‍⚕️ Is doctor:', isDoctor, 'Staff ID:', staff.id);
+
+        if (isDoctor && staff.id) {
+          // ✅ Load doctor detail
+          console.log('🔄 Calling getDoctorDetail with ID:', staff.id);
+          const response = await getDoctorDetail(staff.id);
+          console.log('✅ Doctor detail FULL response:', JSON.stringify(response, null, 2));
+
+          // ✅ FIXED: Check for response data properly
+          if (response && (response.result || response.id)) {
+            // ✅ Handle both response.result and direct response
+            const doctorData = response.result || response;
+            console.log('📊 Doctor data extracted:', doctorData);
+            console.log('👤 User data:', doctorData.user);
+
+            setDoctorDetail(doctorData);
+
+            // ✅ Extract data with enhanced debugging
+            const userData = doctorData.user;
+            const firstAffiliation = doctorData.hospitalAffiliations?.[0] || {};
+
+            console.log('🏥 First affiliation:', firstAffiliation);
+            console.log('🏥 Department name from affiliation:', firstAffiliation.departmentName);
+
+            // Find department ID by name
+            const departmentId = firstAffiliation.departmentName ?
+              deptData.find(d => d.name === firstAffiliation.departmentName)?.id : null;
+            console.log('🆔 Mapped department ID:', departmentId);
+
+            // ✅ Set province for ward loading BEFORE form data
+            if (userData.province) {
+              console.log('🌏 Setting province:', userData.province);
+              setSelectedProvince(userData.province);
+            }
+
+            // ✅ Enhanced data extraction with specific field debugging
+            console.log('📋 CCCD from API:', userData.cccd, 'Type:', typeof userData.cccd);
+            console.log('📅 DOB from API:', userData.dob, 'Type:', typeof userData.dob);
+            console.log('📅 PracticingFrom from API:', doctorData.practicingFrom, 'Type:', typeof doctorData.practicingFrom);
+            console.log('👤 Fullname from API:', userData.fullname);
+            console.log('📧 Email from API:', userData.email);
+            console.log('📞 Phone from API:', userData.phoneNumber);
+            console.log('🏠 Province from API:', userData.province);
+            console.log('🏘️ Ward from API:', userData.ward);
+            console.log('🏠 Street from API:', userData.streetAddress);
+            console.log('👨/👩 Gender from API:', userData.gender, 'Type:', typeof userData.gender);
+            console.log('📝 Description from API:', doctorData.description);
+
+            // Parse dates with enhanced debugging
+            const parseDob = safeParseDob(userData.dob);
+            const parsePracticingFrom = safeParseDob(doctorData.practicingFrom);
+
+            // ✅ Extract specialization IDs
+            const specializationIds = doctorData.specializations?.map(s => s.id) || [];
+            console.log('🩺 Specialization IDs:', specializationIds);
+
+            // ✅ Build form data with explicit field mapping
+            const formData = {
+              // User basic info - direct mapping from API
+              fullname: userData.fullname || "",
+              email: userData.email || "",
+              phoneNumber: userData.phoneNumber || "",
+              gender: userData.gender === true ? 'male' : 'female',  // ✅ Explicit boolean to string conversion
+              dob: parseDob,
+              cccd: userData.cccd || "",  // ✅ Direct mapping from API
+              avatarUrl: userData.avatarUrl || "",
+              job: userData.job || 'Bác sĩ',
+
+              // Address info - direct mapping from API
+              province: userData.province || "",
+              ward: userData.ward || "",
+              streetAddress: userData.streetAddress || "",
+
+              // Doctor specific info
+              description: doctorData.description || "",  // ✅ Direct mapping from API
+              practicingFrom: parsePracticingFrom,
+              departmentId: departmentId,
+              specializationIds: specializationIds
+            };
+
+            console.log('✅ FINAL form data to be set:', JSON.stringify(formData, null, 2));
+
+            // ✅ Set form data directly without delay first, then verify
+            form.setFieldsValue(formData);
+            console.log('✅ Form values set successfully (immediate)');
+
+            // ✅ Also set with delay as backup
+            setTimeout(() => {
+              form.setFieldsValue(formData);
+              console.log('✅ Form values set successfully (with delay)');
+
+              // Verify the form was set correctly
+              const currentValues = form.getFieldsValue();
+              console.log('🔍 Current form values after setting:', currentValues);
+              console.log('🔍 CCCD in form:', currentValues.cccd);
+              console.log('🔍 DOB in form:', currentValues.dob);
+              console.log('🔍 Description in form:', currentValues.description);
+              console.log('🔍 Province in form:', currentValues.province);
+              console.log('🔍 Ward in form:', currentValues.ward);
+            }, 200);
+
+            dispatch(setMessage({
+              type: 'success',
+              content: `✅ Đã tải thông tin bác sĩ "${userData.fullname}"`
+            }));
+
+          } else {
+            console.log('❌ No valid data in response, using fallback');
+            console.log('📋 Response structure:', response);
+            // Fallback to staff data
+            setFallbackFormData(staff, deptData);
+          }
+        } else {
+          console.log('👩‍⚕️ Loading nurse data or no staff ID');
+          // ✅ For nurses, use staff data directly
+          setFallbackFormData(staff, deptData);
         }
 
-        if (!values.specializationIds || values.specializationIds.length === 0) {
-          message.error('At least one specialization is required');
-          setLoading(false);
-          return;
-        }
+      } catch (error) {
+        console.error('❌ Error loading edit data:', error);
+        dispatch(setMessage({
+          type: 'error',
+          content: '❌ Không thể tải thông tin. Vui lòng thử lại.'
+        }));
+
+        // Set fallback data
+        setFallbackFormData(staff, departments);
+      } finally {
+        setInitialLoading(false);
       }
+    };
 
-      // ✅ Format dates properly
+    initializeEditModal();
+  }, [visible, staff, hospitalId, form, dispatch]);
+
+  // ✅ Enhanced fallback form data setter
+  const setFallbackFormData = (staffData, deptData = departments) => {
+    console.log('📋 Setting fallback data for:', staffData);
+
+    // ✅ Try to get data from staff object first
+    const staffUser = staffData.user || staffData;
+
+    const parseDob = safeParseDob(staffUser.dob || staffData.dob);
+    const parsePracticingFrom = safeParseDob(staffUser.practicingFrom || staffData.practicingFrom);
+
+    const province = staffUser.province || staffData.province;
+    if (province) {
+      setSelectedProvince(province);
+    }
+
+    const fallbackData = {
+      fullname: staffUser.fullname || staffData.fullname || staffData.name || "",
+      email: staffUser.email || staffData.email || "",
+      phoneNumber: staffUser.phoneNumber || staffData.phoneNumber || staffData.phone || "",
+      gender: typeof staffUser.gender === 'boolean'
+        ? (staffUser.gender ? 'male' : 'female')
+        : (staffUser.gender || staffData.gender || 'male'),
+      dob: parseDob,
+      cccd: staffUser.cccd || staffData.cccd || "",  // ✅ Check both locations
+      avatarUrl: staffUser.avatarUrl || staffData.avatarUrl || staffData.avatar || "",
+      job: staffUser.job || staffData.job || 'Bác sĩ',
+      province: province || "",
+      ward: staffUser.ward || staffData.ward || "",
+      streetAddress: staffUser.streetAddress || staffData.streetAddress || "",
+      departmentId: staffData.departmentId || null,
+      specializationIds: staffData.specializationIds || [],
+      description: staffData.description || "",
+      practicingFrom: parsePracticingFrom
+    };
+
+    console.log('📋 Fallback form data:', fallbackData);
+    form.setFieldsValue(fallbackData);
+
+    // ✅ Verify fallback data was set
+    setTimeout(() => {
+      const currentValues = form.getFieldsValue();
+      console.log('🔍 Fallback form values after setting:', currentValues);
+    }, 100);
+
+    dispatch(setMessage({
+      type: 'info',
+      content: '📋 Đã tải thông tin cơ bản'
+    }));
+  };
+
+  // Reset when modal closes
+  useEffect(() => {
+    if (!visible) {
+      console.log('🚪 Modal closed, resetting form');
+      form.resetFields();
+      setDoctorDetail(null);
+      setSelectedProvince(null);
+      setWards([]);
+      setLoading(false);
+      setInitialLoading(false);
+    }
+  }, [visible, form]);
+
+  // Handle form values change
+  const onFormValuesChange = (changedValues) => {
+    console.log('📝 Form values changed:', changedValues);
+
+    if ("province" in changedValues) {
+      const newProvince = changedValues.province || null;
+      console.log('🌏 Province changed to:', newProvince);
+      setSelectedProvince(newProvince);
+
+      if (newProvince !== selectedProvince) {
+        form.setFieldsValue({ ward: undefined });
+        console.log('🏘️ Ward reset due to province change');
+      }
+    }
+  };
+
+  // Handle form submission
+  const handleSubmit = async (values) => {
+    console.log('📤 Submitting form with values:', values);
+
+    setLoading(true);
+
+    const isDoctor = staff.type === 'doctor' || staff.editApiType === 'updateDoctor';
+    const staffTypeText = isDoctor ? 'bác sĩ' : 'điều dưỡng';
+
+    dispatch(setMessage({
+      type: 'loading',
+      content: `Đang cập nhật thông tin ${staffTypeText}...`
+    }));
+
+    try {
+      // Format dates
       let dobFormatted = null;
       if (values.dob) {
-        try {
-          if (typeof values.dob === 'string') {
-            dobFormatted = values.dob.match(/^\d{4}-\d{2}-\d{2}$/)
-              ? values.dob
-              : dayjs(values.dob).format('YYYY-MM-DD');
-          } else if (values.dob && values.dob.format) {
-            dobFormatted = values.dob.format('YYYY-MM-DD');
-          } else {
-            dobFormatted = dayjs(values.dob).format('YYYY-MM-DD');
-          }
-        } catch (error) {
-          console.error('❌ Error formatting DOB:', error);
-          throw new Error('Invalid date of birth format');
-        }
+        dobFormatted = dayjs(values.dob).format('YYYY-MM-DD');
+        console.log('📅 DOB formatted:', dobFormatted);
       }
 
       let practicingFromFormatted = null;
       if (values.practicingFrom) {
-        try {
-          if (typeof values.practicingFrom === 'string') {
-            practicingFromFormatted = values.practicingFrom;
-          } else if (values.practicingFrom.toISOString) {
-            practicingFromFormatted = values.practicingFrom.toISOString();
-          } else {
-            practicingFromFormatted = dayjs(values.practicingFrom).toISOString();
-          }
-        } catch (error) {
-          console.error('❌ Error formatting practicingFrom:', error);
-          practicingFromFormatted = null;
-        }
+        practicingFromFormatted = dayjs(values.practicingFrom).toISOString();
+        console.log('📅 Practicing from formatted:', practicingFromFormatted);
       }
 
       let response;
 
       if (isDoctor) {
-        // ✅ Handle doctor update
-        const hospitalId = currentHospital?.id || user?.hospitals?.[0]?.id;
-        if (!hospitalId) {
-          throw new Error('Hospital ID not found. Please refresh and try again.');
-        }
+        // Doctor update
+        const doctorId = doctorDetail?.id || staff.id;
+        const userId = doctorDetail?.user?.id || staff.userId || staff.user?.id;
 
         const updateData = {
-          id: staff.originalData?.id || staff.id,
-
+          id: parseInt(doctorId),
           hospitalAffiliations: [{
             hospitalId: parseInt(hospitalId),
             departmentId: parseInt(values.departmentId),
             contractStart: dayjs().toISOString(),
             contractEnd: dayjs().add(1, 'year').toISOString(),
-            position: "Doctor"
+            position: "Bác sĩ"
           }],
-
           user: {
-            id: staff.originalData?.user?.id || staff.userId || staff.id,
+            id: parseInt(userId),
             fullname: values.fullname?.trim() || "",
             phoneNumber: values.phoneNumber?.trim() || "",
             email: values.email?.trim() || "",
             avatarUrl: values.avatarUrl?.trim() || "",
             dob: dobFormatted,
             gender: values.gender === 'male',
-            job: values.job || 'Doctor',
+            job: values.job || 'Bác sĩ',
             cccd: values.cccd?.trim() || "",
             province: values.province?.trim() || "",
             ward: values.ward?.trim() || "",
             streetAddress: values.streetAddress?.trim() || ""
           },
-
-          doctor: {
-            id: staff.originalData?.id || staff.id,
-            description: values.description?.trim() || "",
-            practicingFrom: practicingFromFormatted,
-          },
-
           description: values.description?.trim() || "",
-          practicingFrom: practicingFromFormatted,
+          practicingFrom: practicingFromFormatted || dayjs().toISOString(),
           specializationIds: Array.isArray(values.specializationIds)
-            ? values.specializationIds
-            : [values.specializationIds]
+            ? values.specializationIds.map(id => parseInt(id))
+            : [parseInt(values.specializationIds)]
         };
 
-        console.log('📤 Doctor update payload:', JSON.stringify(updateData, null, 2));
-        response = await updateDoctor(staff.id, updateData);
+        console.log('🔄 Doctor update payload:', updateData);
+        response = await updateDoctor(updateData);
 
-      } else if (isNurse) {
-        // ✅ Handle nurse update
+      } else {
+        // Nurse/User update
+        const nurseId = staff.id || staff.userId;
+
         const updateData = {
-          id: staff.id || staff.userId,
+          id: parseInt(nurseId),
           fullname: values.fullname?.trim() || "",
           phoneNumber: values.phoneNumber?.trim() || "",
           email: values.email?.trim() || "",
           avatarUrl: values.avatarUrl?.trim() || "",
           dob: dobFormatted,
           gender: values.gender === 'male',
-          job: values.job || 'Nurse',
+          job: values.job || 'Điều dưỡng',
           cccd: values.cccd?.trim() || "",
           province: values.province?.trim() || "",
           ward: values.ward?.trim() || "",
-          streetAddress: values.streetAddress?.trim() || "",
-          description: values.description?.trim() || "",
-          practicingFrom: practicingFromFormatted,
+          streetAddress: values.streetAddress?.trim() || ""
         };
 
-        console.log('📤 Nurse update payload:', JSON.stringify(updateData, null, 2));
-        response = await updateUser(staff.id, updateData);
-      } else {
-        throw new Error('Unknown staff type. Cannot determine update method.');
+        console.log('🔄 Nurse update payload:', updateData);
+        response = await updateUser(nurseId, updateData);
       }
 
-      console.log('📥 Update response:', response);
+      // Success handling
+      dispatch(setMessage({
+        type: 'success',
+        content: `✅ Cập nhật thông tin ${staffTypeText} thành công!`
+      }));
 
-      // ✅ Handle success
-      const isSuccess = (
-        response === true ||
-        response?.success === true ||
-        response?.success !== false ||
-        (response?.status >= 200 && response?.status < 300) ||
-        response?.message?.toLowerCase().includes('success') ||
-        (!response?.error && response !== false && response !== null)
-      );
-
-      if (isSuccess) {
-        console.log(`✅ ${staffTypeText} updated successfully`);
-        message.success(`${staffTypeText} updated successfully!`);
+      setTimeout(() => {
         dispatch(setMessage({
-          type: 'success',
-          content: `🎉 Thông tin ${staffTypeText} đã được cập nhật thành công!`,
-          duration: 4
+          type: 'info',
+          content: '📋 Dữ liệu đã được lưu vào hệ thống'
         }));
+      }, 1500);
 
-        onSuccess();
-      } else {
-        const errorMessage = response?.message || response?.error || `Failed to update ${staffTypeText}`;
-        throw new Error(errorMessage);
+      handleCancel();
+
+      if (typeof onSuccess === 'function') {
+        onSuccess(response);
       }
 
     } catch (error) {
-      console.error(`❌ Error updating ${staffTypeText}:`, error);
+      console.error(`❌ Lỗi khi cập nhật ${staffTypeText}:`, error);
 
-      let errorMessage = `Failed to update ${staffTypeText}. Please try again.`;
+      const errorMessage = error.response?.data?.message || error.message || `Cập nhật ${staffTypeText} thất bại`;
 
-      if (error.response?.data) {
-        if (typeof error.response.data === 'string') {
-          errorMessage = error.response.data;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.response.data.title) {
-          errorMessage = error.response.data.title;
-        } else if (error.response.data.errors) {
-          const validationErrors = [];
-          Object.entries(error.response.data.errors).forEach(([field, messages]) => {
-            if (Array.isArray(messages)) {
-              messages.forEach(msg => validationErrors.push(`${field}: ${msg}`));
-            } else {
-              validationErrors.push(`${field}: ${messages}`);
-            }
-          });
-          errorMessage = validationErrors.join('\n');
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      message.error(errorMessage);
       dispatch(setMessage({
         type: 'error',
-        content: `❌ ${errorMessage}`,
-        duration: 8
+        content: `❌ ${errorMessage}`
       }));
+
+      if (error.response?.status) {
+        setTimeout(() => {
+          dispatch(setMessage({
+            type: 'warning',
+            content: `🔍 Mã lỗi: ${error.response.status}`
+          }));
+        }, 1000);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // Handle cancel
   const handleCancel = () => {
+    dispatch(setMessage({
+      type: 'info',
+      content: '🚫 Đã hủy chỉnh sửa thông tin'
+    }));
+
     form.resetFields();
     setSelectedProvince(null);
     setWards([]);
-    setCurrentHospital(null);
-    setHospitalDepartments([]);
-    setHospitalSpecializations([]);
-    onCancel();
+    setDoctorDetail(null);
+    setLoading(false);
+
+    if (typeof onCancel === 'function') {
+      onCancel();
+    }
   };
 
   if (!staff) return null;
 
   return (
-    <Modal
-      title={
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <EditOutlined style={{
-            color: '#1890ff',
-            marginRight: 8,
-            fontSize: '20px'
-          }} />
-          <span style={{ fontSize: '18px', fontWeight: 600 }}>
-            Chỉnh sửa {(staff.type === 'doctor' || staff.editApiType === 'updateDoctor') ? 'Bác sĩ' : 'Y tá'} - {staff.fullname || staff.name}
-          </span>
-          {currentHospital && (
-            <span style={{
-              fontSize: '12px',
-              color: '#666',
-              marginLeft: '8px',
-              fontWeight: 'normal'
-            }}>
-              ({currentHospital.name})
-            </span>
-          )}
-        </div>
-      }
-      open={visible}
-      onCancel={handleCancel}
-      footer={null}
-      width={1000}
-      destroyOnClose
-      style={{ top: 20 }}
-      maskClosable={false}
-    >
-      <Spin spinning={loading}>
-        <div style={{ maxHeight: '70vh', overflowY: 'auto', padding: '0 4px' }}>
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            onValuesChange={onFormValuesChange}
-            preserve={false}
-          >
-            {/* Basic Information */}
-            <div style={{
-              marginBottom: 32,
-              padding: '20px',
-              background: '#f8f9fa',
-              borderRadius: '8px',
-              border: '1px solid #e8e8e8'
-            }}>
-              <h3 style={{
-                color: '#1890ff',
-                marginBottom: 20,
-                fontSize: '16px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center'
-              }}>
-                <UserOutlined style={{ marginRight: 8 }} />
-                Basic Information
-              </h3>
+    <>
+      {contextHolder}
 
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="fullname"
-                    label="Full Name"
-                    rules={[
-                      { required: true, message: 'Please enter full name' },
-                      { min: 2, message: 'Name must be at least 2 characters' }
-                    ]}
-                  >
-                    <Input placeholder="Full name" />
-                  </Form.Item>
-                </Col>
-
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="email"
-                    label="Email Address"
-                    rules={[
-                      { required: true, message: 'Please enter email' },
-                      { type: 'email', message: 'Please enter valid email' }
-                    ]}
-                  >
-                    <Input placeholder="email@hospital.com" />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Row gutter={16}>
-                <Col xs={24} md={8}>
-                  <Form.Item
-                    name="phoneNumber"
-                    label="Phone Number"
-                    rules={[
-                      { required: true, message: 'Please enter phone number' },
-                      { pattern: /^[0-9]{10,11}$/, message: 'Phone number must be 10-11 digits' }
-                    ]}
-                  >
-                    <Input placeholder="0123456789" />
-                  </Form.Item>
-                </Col>
-
-                <Col xs={24} md={8}>
-                  <Form.Item
-                    name="gender"
-                    label="Gender"
-                    rules={[{ required: true, message: 'Please select gender' }]}
-                  >
-                    <Select placeholder="Select gender">
-                      <Option value="male">👨 Male</Option>
-                      <Option value="female">👩 Female</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-
-                <Col xs={24} md={8}>
-                  <Form.Item
-                    name="dob"
-                    label="Date of Birth"
-                    rules={[
-                      { required: true, message: 'Please select date of birth' }, // ✅ Add required validation
-                      {
-                        validator: (_, value) => {
-                          if (value && dayjs().diff(value, 'years') < 18) {
-                            return Promise.reject(new Error('Must be at least 18 years old'));
-                          }
-                          if (value && dayjs().diff(value, 'years') > 100) {
-                            return Promise.reject(new Error('Please enter a valid birth date'));
-                          }
-                          return Promise.resolve();
-                        }
-                      }
-                    ]}
-                  >
-                    <DatePicker
-                      style={{ width: '100%' }}
-                      placeholder="Select date of birth"
-                      format="YYYY-MM-DD"
-                      disabledDate={(current) => {
-
-                        return current && (
-                          current > dayjs().endOf('day') ||
-                          current < dayjs().subtract(100, 'years')
-                        );
-                      }}
-                      showToday={false}
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="cccd"
-                    label="CCCD/ID Card Number"
-                    rules={[
-                      { pattern: /^[0-9]{9,12}$/, message: 'ID must be 9-12 digits' }
-                    ]}
-                  >
-                    <Input placeholder="Enter ID number" />
-                  </Form.Item>
-                </Col>
-
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="avatarUrl"
-                    label="Profile Image URL"
-                  >
-                    <Input placeholder="https://example.com/photo.jpg" />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              {/* <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="job"
-                    label="Job Title"
-                  >
-                    <Input placeholder="Doctor" />
-                  </Form.Item>
-                </Col>
-              </Row> */}
+      {/* ✅ ConfigProvider with Vietnamese locale */}
+      <ConfigProvider locale={locale}>
+        <Modal
+          title={
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <EditOutlined style={{ color: '#1890ff', marginRight: 8, fontSize: '18px' }} />
+              <span style={{ fontSize: '16px', fontWeight: 600 }}>
+                Chỉnh sửa {(staff.type === 'doctor' || staff.editApiType === 'updateDoctor') ? 'Bác sĩ' : 'Điều dưỡng'} - {staff.fullname || staff.name}
+              </span>
             </div>
-
-            {/* Professional Information */}
-            <div style={{
-              marginBottom: 32,
-              padding: '20px',
-              background: '#f0f7ff',
-              borderRadius: '8px',
-              border: '1px solid #d6e4ff'
-            }}>
-              <h3 style={{
-                color: '#1890ff',
-                marginBottom: 20,
-                fontSize: '16px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center'
-              }}>
-                <MedicineBoxOutlined style={{ marginRight: 8 }} />
-                Professional Information
-                {hospitalDepartments.length > 0 && (
-                  <span style={{
-                    fontSize: '12px',
-                    color: '#666',
-                    marginLeft: '8px',
-                    fontWeight: 'normal'
+          }
+          open={visible}
+          onCancel={handleCancel}
+          footer={null}
+          width={900}
+          centered
+          destroyOnClose
+          maskClosable={false}
+        >
+          <Spin spinning={initialLoading || loading} tip={initialLoading ? "Đang tải dữ liệu..." : "Đang xử lý..."}>
+            <div style={{ maxHeight: '70vh', overflowY: 'auto', padding: '0 4px' }}>
+              <Form
+                form={form}
+                layout="vertical"
+                onFinish={handleSubmit}
+                onValuesChange={onFormValuesChange}
+                preserve={false}
+              >
+                {/* Thông tin cơ bản */}
+                <div style={{
+                  marginBottom: 24,
+                  padding: '20px',
+                  background: '#f8f9fa',
+                  borderRadius: '8px',
+                  border: '1px solid #e8e8e8'
+                }}>
+                  <h3 style={{
+                    color: '#1890ff',
+                    marginBottom: 16,
+                    fontSize: '16px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center'
                   }}>
-                    ({hospitalDepartments.length} departments available)
-                  </span>
+                    <UserOutlined style={{ marginRight: 8 }} />
+                    Thông tin cơ bản
+                  </h3>
+
+                  <Row gutter={16}>
+                    <Col xs={24} md={12}>
+                      <Form.Item
+                        name="fullname"
+                        label="Họ và tên"
+                        rules={[
+                          { required: true, message: 'Vui lòng nhập họ tên' },
+                          { min: 2, message: 'Tên phải có ít nhất 2 ký tự' }
+                        ]}
+                      >
+                        <Input
+                          placeholder="Họ và tên"
+                          disabled={true}
+                          style={{
+                            backgroundColor: '#f5f5f5',
+                            color: '#666'
+                          }}
+                        />
+                      </Form.Item>
+                    </Col>
+
+                    <Col xs={24} md={12}>
+                      <Form.Item
+                        name="email"
+                        label="Địa chỉ email"
+                        rules={[
+                          { required: true, message: 'Vui lòng nhập email' },
+                          { type: 'email', message: 'Email không hợp lệ' }
+                        ]}
+                      >
+                        <Input
+                          placeholder="email@benhvien.com"
+                          disabled={true}
+                          style={{
+                            backgroundColor: '#f5f5f5',
+                            color: '#666'
+                          }}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={16}>
+                    <Col xs={24} md={8}>
+                      <Form.Item
+                        name="phoneNumber"
+                        label="Số điện thoại"
+                        rules={[
+                          { required: true, message: 'Vui lòng nhập số điện thoại' },
+                          { pattern: /^[0-9]{10,11}$/, message: 'Số điện thoại phải có 10-11 chữ số' }
+                        ]}
+                      >
+                        <Input placeholder="0123456789" />
+                      </Form.Item>
+                    </Col>
+
+                    <Col xs={24} md={8}>
+                      <Form.Item
+                        name="gender"
+                        label="Giới tính"
+                        rules={[{ required: true, message: 'Vui lòng chọn giới tính' }]}
+                      >
+                        <Select placeholder="Chọn giới tính">
+                          <Option value="male">👨 Nam</Option>
+                          <Option value="female">👩 Nữ</Option>
+                        </Select>
+                      </Form.Item>
+                    </Col>
+
+                    <Col xs={24} md={8}>
+                      <Form.Item
+                        name="dob"
+                        label="Ngày sinh"
+                        rules={[
+                          { required: true, message: 'Vui lòng chọn ngày sinh' }
+                        ]}
+                      >
+                        <DatePicker
+                          style={{ width: '100%' }}
+                          placeholder="Chọn ngày sinh"
+                          format="DD/MM/YYYY"
+                          locale={locale.DatePicker}
+                          disabledDate={(current) => {
+                            return current && current > dayjs().endOf('day');
+                          }}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={16}>
+                    <Col xs={24} md={12}>
+                      <Form.Item
+                        name="cccd"
+                        label="Số CCCD/CMND"
+                        rules={[
+                          { pattern: /^[0-9]{9,12}$/, message: 'CCCD phải có 9-12 chữ số' }
+                        ]}
+                      >
+                        <Input placeholder="Nhập số CCCD" maxLength={12} />
+                      </Form.Item>
+                    </Col>
+
+                    <Col xs={24} md={12}>
+                      <Form.Item
+                        name="avatarUrl"
+                        label="URL ảnh đại diện"
+                      >
+                        <Input placeholder="https://example.com/photo.jpg" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </div>
+
+                {/* Thông tin chuyên môn - chỉ cho bác sĩ */}
+                {(staff.type === 'doctor' || staff.editApiType === 'updateDoctor') && (
+                  <div style={{
+                    marginBottom: 24,
+                    padding: '20px',
+                    background: '#f0f7ff',
+                    borderRadius: '8px',
+                    border: '1px solid #d6e4ff'
+                  }}>
+                    <h3 style={{
+                      color: '#1890ff',
+                      marginBottom: 16,
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}>
+                      <MedicineBoxOutlined style={{ marginRight: 8 }} />
+                      Thông tin chuyên môn
+                    </h3>
+
+                    <Form.Item
+                      name="description"
+                      label="Mô tả chuyên môn"
+                    >
+                      <TextArea
+                        rows={3}
+                        placeholder="Mô tả ngắn gọn về chuyên môn"
+                      />
+                    </Form.Item>
+
+                    <Row gutter={16}>
+                      <Col xs={24} md={12}>
+                        <Form.Item
+                          name="departmentId"
+                          label="Khoa"
+                          rules={[{ required: true, message: 'Vui lòng chọn khoa' }]}
+                        >
+                          <Select
+                            placeholder="Chọn khoa"
+                            showSearch
+                            filterOption={(input, option) =>
+                              option?.children?.toLowerCase().includes(input.toLowerCase())
+                            }
+                          >
+                            {departments.map(dept => (
+                              <Option key={dept.id} value={dept.id}>
+                                🏥 {dept.name}
+                              </Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      </Col>
+
+                      <Col xs={24} md={12}>
+                        <Form.Item
+                          name="specializationIds"
+                          label="Chuyên khoa"
+                          rules={[{ required: true, message: 'Vui lòng chọn chuyên khoa' }]}
+                        >
+                          <Select
+                            mode="multiple"
+                            placeholder="Chọn chuyên khoa"
+                            showSearch
+                          >
+                            {hospitalSpecializations.map(spec => (
+                              <Option key={spec.id} value={spec.id}>
+                                🩺 {spec.name}
+                              </Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    <Row gutter={16}>
+                      <Col xs={24} md={12}>
+                        <Form.Item
+                          name="practicingFrom"
+                          label="Hành nghề từ"
+                        >
+                          <DatePicker
+                            style={{ width: '100%' }}
+                            placeholder="Chọn ngày hành nghề"
+                            format="DD/MM/YYYY"
+                            locale={locale.DatePicker}
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </div>
                 )}
-              </h3>
 
-              <Form.Item
-                name="description"
-                label="Professional Description"
-              >
-                <TextArea
-                  rows={3}
-                  placeholder="Brief professional description or summary"
-                />
-              </Form.Item>
+                {/* Thông tin địa chỉ */}
+                <div style={{
+                  marginBottom: 24,
+                  padding: '20px',
+                  background: '#f6ffed',
+                  borderRadius: '8px',
+                  border: '1px solid #b7eb8f'
+                }}>
+                  <h3 style={{
+                    color: '#52c41a',
+                    marginBottom: 16,
+                    fontSize: '16px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}>
+                    📍 Thông tin địa chỉ
+                  </h3>
 
-              {/* Department and Specializations - Only for Doctors */}
-              {(staff.type === 'doctor' || staff.editApiType === 'updateDoctor') && (
-                <Row gutter={16}>
-                  <Col xs={24} md={12}>
-                    <Form.Item
-                      name="departmentId"
-                      label="Department"
-                      rules={[{ required: true, message: 'Please select department' }]}
-                    >
-                      <Select
-                        placeholder={hospitalDepartments.length > 0 ? "Select department" : "Loading departments..."}
-                        loading={departmentsLoading}
-                        showSearch
-                        filterOption={(input, option) =>
-                          option?.children?.toLowerCase().includes(input.toLowerCase())
-                        }
-                        notFoundContent={hospitalDepartments.length === 0 ? "No departments found" : "No matching departments"}
+                  <Row gutter={16}>
+                    <Col xs={24} md={8}>
+                      <Form.Item
+                        name="province"
+                        label="Tỉnh/Thành phố"
+                        rules={[{ required: true, message: 'Vui lòng chọn tỉnh/thành phố' }]}
                       >
-                        {hospitalDepartments?.map(dept => (
-                          <Option key={dept.id} value={dept.id}>
-                            🏥 {dept.name}
-                            {dept.description && (
-                              <span style={{ color: '#999', fontSize: '12px' }}>
-                                {' - ' + dept.description}
-                              </span>
-                            )}
-                          </Option>
-                        ))}
-                      </Select>
-                    </Form.Item>
-                  </Col>
+                        <Select
+                          placeholder="Chọn tỉnh/thành phố"
+                          showSearch
+                          allowClear
+                          loading={provinces.length === 0}
+                          filterOption={(input, option) =>
+                            (option?.label ?? "")
+                              .toLowerCase()
+                              .includes(input.toLowerCase())
+                          }
+                          options={provinces.map((p) => ({
+                            label: p.province,
+                            value: p.province,
+                          }))}
+                        />
+                      </Form.Item>
+                    </Col>
 
-                  <Col xs={24} md={12}>
-                    <Form.Item
-                      name="specializationIds"
-                      label="Specializations"
-                      rules={[{ required: true, message: 'Please select specializations' }]}
-                    >
-                      <Select
-                        mode="multiple"
-                        placeholder={hospitalSpecializations.length > 0 ? "Select specializations" : "Loading specializations..."}
-                        loading={specializationsLoading}
-                        showSearch
-                        notFoundContent={hospitalSpecializations.length === 0 ? "No specializations found" : "No matching specializations"}
+                    <Col xs={24} md={8}>
+                      <Form.Item
+                        name="ward"
+                        label="Quận/Huyện"
+                        rules={[{ required: true, message: 'Vui lòng chọn quận/huyện' }]}
                       >
-                        {hospitalSpecializations?.map(spec => (
-                          <Option key={spec.id} value={spec.id}>
-                            🩺 {spec.name}
-                            {spec.description && (
-                              <span style={{ color: '#999', fontSize: '12px' }}>
-                                {' - ' + spec.description}
-                              </span>
-                            )}
-                          </Option>
-                        ))}
-                      </Select>
-                    </Form.Item>
-                  </Col>
-                </Row>
-              )}
+                        <Select
+                          placeholder="Chọn quận/huyện"
+                          disabled={!selectedProvince}
+                          showSearch
+                          allowClear
+                          loading={selectedProvince && wards.length === 0}
+                          options={wards.map((w) => ({ label: w.name, value: w.name }))}
+                          filterOption={(input, option) =>
+                            (option?.label ?? "")
+                              .toLowerCase()
+                              .includes(input.toLowerCase())
+                          }
+                        />
+                      </Form.Item>
+                    </Col>
 
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="practicingFrom"
-                    label="Practicing Since"
+                    <Col xs={24} md={8}>
+                      <Form.Item
+                        name="streetAddress"
+                        label="Địa chỉ cụ thể"
+                        rules={[{ required: true, message: 'Vui lòng nhập địa chỉ cụ thể' }]}
+                      >
+                        <Input placeholder="123 Đường Nguyễn Huệ" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </div>
+
+                {/* Form Actions */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: 12,
+                  paddingTop: 16,
+                  borderTop: '1px solid #f0f0f0'
+                }}>
+                  <Button onClick={handleCancel} size="large" disabled={loading}>
+                    Hủy
+                  </Button>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={loading}
+                    size="large"
+                    icon={<SaveOutlined />}
                   >
-                    <DatePicker
-                      style={{ width: '100%' }}
-                      placeholder="Select date"
-                      format="YYYY-MM-DD"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
+                    {loading ? 'Đang cập nhật...' : 'Cập nhật thông tin'}
+                  </Button>
+                </div>
+              </Form>
             </div>
-
-            {/* Address Information */}
-            <div style={{
-              marginBottom: 32,
-              padding: '20px',
-              background: '#f6ffed',
-              borderRadius: '8px',
-              border: '1px solid #b7eb8f'
-            }}>
-              <h3 style={{
-                color: '#52c41a',
-                marginBottom: 20,
-                fontSize: '16px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center'
-              }}>
-                📍 Address Information
-              </h3>
-
-              <Row gutter={16}>
-                <Col xs={24} md={8}>
-                  <Form.Item
-                    name="province"
-                    label="Province/City"
-                    rules={[{ required: true, message: 'Please select province' }]}
-                  >
-                    <Select
-                      placeholder="Select province"
-                      showSearch
-                      allowClear
-                      filterOption={(input, option) =>
-                        (option?.label ?? "")
-                          .toLowerCase()
-                          .includes(input.toLowerCase())
-                      }
-                      options={provinces.map((p) => ({
-                        label: p.province,
-                        value: p.province,
-                      }))}
-                    />
-                  </Form.Item>
-                </Col>
-
-                <Col xs={24} md={8}>
-                  <Form.Item
-                    name="ward"
-                    label="Ward/District"
-                    rules={[{ required: true, message: 'Please select ward' }]}
-                  >
-                    <Select
-                      placeholder="Select ward"
-                      disabled={!selectedProvince}
-                      showSearch
-                      allowClear
-                      options={wards.map((w) => ({ label: w.name, value: w.name }))}
-                      filterOption={(input, option) =>
-                        (option?.label ?? "")
-                          .toLowerCase()
-                          .includes(input.toLowerCase())
-                      }
-                    />
-                  </Form.Item>
-                </Col>
-
-                <Col xs={24} md={8}>
-                  <Form.Item
-                    name="streetAddress"
-                    label="Street Address"
-                    rules={[{ required: true, message: 'Please enter street address' }]}
-                  >
-                    <Input placeholder="123 Nguyen Hue Street" />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </div>
-
-            {/* Form Actions */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: 12,
-              paddingTop: 16,
-              borderTop: '1px solid #f0f0f0'
-            }}>
-              <Button onClick={handleCancel} size="large" disabled={loading}>
-                Cancel
-              </Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={loading}
-                size="large"
-                icon={<SaveOutlined />}
-              >
-                {loading ? 'Updating...' : 'Update Doctor'}
-              </Button>
-            </div>
-          </Form>
-        </div>
-      </Spin>
-    </Modal>
+          </Spin>
+        </Modal>
+      </ConfigProvider>
+    </>
   );
 };
 

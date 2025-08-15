@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { Modal, Form, Input, DatePicker, Select, Button, Spin, notification, Row, Col } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
 import { createRequest } from '../../../services/requestService';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 import { ConfigProvider } from 'antd';
 import viVN from 'antd/es/locale/vi_VN';
+import { setMessage } from '../../../redux/slices/messageSlice';
 const { Option } = Select;
 
 const DoctorLeaveRequestForm = ({ visible, onCancel, onSuccess }) => {
@@ -14,6 +15,7 @@ const DoctorLeaveRequestForm = ({ visible, onCancel, onSuccess }) => {
   const user = useSelector((state) => state.user.user);
   const [startDateValue, setStartDateValue] = useState(null);
   const [endDateValue, setEndDateValue] = useState(null);
+  const dispatch = useDispatch();
   console.log("User data:", user);
   const disabledStartDate = (current) => {
     if (!current) return false;
@@ -66,6 +68,7 @@ const DoctorLeaveRequestForm = ({ visible, onCancel, onSuccess }) => {
 
     } catch (err) {
       setSpinning(false);
+      dispatch(setMessage({ type: "error", content: "Gửi đơn xin nghỉ phép thất bại. Vui lòng thử lại." }));
       error();
       console.error("Error submitting leave request:", err);
     }

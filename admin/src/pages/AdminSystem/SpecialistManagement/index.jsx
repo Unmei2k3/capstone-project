@@ -214,9 +214,9 @@ const ManageSpecialist = () => {
                             <Button type="primary" icon={<PlusOutlined />} onClick={showAddModal} style={{ marginRight: 8 }}>
                                 Thêm chuyên khoa
                             </Button>
-                            <Button icon={<UploadOutlined />} onClick={() => fileInputRef.current?.click()}>
+                            {/* <Button icon={<UploadOutlined />} onClick={() => fileInputRef.current?.click()}>
                                 Nhập từ Excel
-                            </Button>
+                            </Button> */}
                             <input
                                 type="file"
                                 accept=".xlsx, .xls"

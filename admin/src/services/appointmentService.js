@@ -362,17 +362,21 @@ export const getDepartments = async () => {
     }
 };
 
-export const getAppointmentsByUserId = async (userId, from, to) => {
+export const getAppointmentsByUserId = async (userId, from = null, to = null) => {
   try {
-    const query = new URLSearchParams({ from, to }).toString();
-    const url = `/user/${userId}/appointments?${query}`;
-    const result = await getAuth(url);  
+    let url = `/user/${userId}/appointments`;
+    if (from && to) {
+      const query = new URLSearchParams({ from, to }).toString();
+      url = `${url}?${query}`;
+    }
+    const result = await getAuth(url);
     return result.result;
   } catch (error) {
     console.error(`Error fetching appointments for user ${userId}:`, error.message);
     throw error;
   }
 };
+
 
 export const changeAppointmentTime = async (appointmentId, scheduleId) => {
   try {
