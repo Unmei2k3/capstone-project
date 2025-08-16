@@ -16,12 +16,13 @@ import {
   EditOutlined,
   SaveOutlined,
   UserOutlined,
-  MedicineBoxOutlined
+  MedicineBoxOutlined,
+  HeartOutlined
 } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { setMessage, clearMessage } from '../../../redux/slices/messageSlice';
 import { getDoctorDetail, updateDoctor } from '../../../services/doctorService';
-import { updateUser } from '../../../services/userService';
+import { updateUser, getUserById } from '../../../services/userService';
 import { getProvinces } from '../../../services/provinceService';
 import { getSpecializationsByHospitalId } from '../../../services/specializationService';
 import { getAllDepartments } from '../../../services/departmentService';
@@ -44,6 +45,7 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
   const [hospitalSpecializations, setHospitalSpecializations] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [doctorDetail, setDoctorDetail] = useState(null);
+  const [nurseDetail, setNurseDetail] = useState(null);
 
   // Address states
   const [provinces, setProvinces] = useState([]);
@@ -162,16 +164,17 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
     }
   };
 
-  // ✅ Main modal initialization - FIXED logic
+  // ✅ ENHANCED: Modal initialization with getUserById instead of getStaffNurseByUserId
   useEffect(() => {
     const initializeEditModal = async () => {
       if (!visible || !staff) {
+        console.log('❌ Modal not visible or no staff data:', { visible, staff });
         return;
       }
 
       setInitialLoading(true);
-
-
+      console.log('🔄 Starting to initialize edit modal...');
+      console.log('📊 Staff object received:', JSON.stringify(staff, null, 2));
 
       try {
         // Load basic data first
@@ -182,7 +185,9 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
         ]);
 
         const isDoctor = staff.type === 'doctor' || staff.editApiType === 'updateDoctor';
-        console.log('👨‍⚕️ Is doctor:', isDoctor, 'Staff ID:', staff.id);
+        const isNurse = staff.type === 'nurse' || staff.editApiType === 'updateUser' || staff.type === 'staff';
+        console.log('👨‍⚕️ Is doctor:', isDoctor, '👩‍⚕️ Is nurse:', isNurse);
+        console.log('🆔 Staff ID:', staff.id, 'User ID:', staff.userId, 'Staff Type:', staff.type);
 
         if (isDoctor && staff.id) {
           // ✅ Load doctor detail
@@ -190,114 +195,112 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
           const response = await getDoctorDetail(staff.id);
           console.log('✅ Doctor detail FULL response:', JSON.stringify(response, null, 2));
 
-          // ✅ FIXED: Check for response data properly
           if (response && (response.result || response.id)) {
-            // ✅ Handle both response.result and direct response
             const doctorData = response.result || response;
             console.log('📊 Doctor data extracted:', doctorData);
-            console.log('👤 User data:', doctorData.user);
-
             setDoctorDetail(doctorData);
-
-            // ✅ Extract data with enhanced debugging
-            const userData = doctorData.user;
-            const firstAffiliation = doctorData.hospitalAffiliations?.[0] || {};
-
-            console.log('🏥 First affiliation:', firstAffiliation);
-            console.log('🏥 Department name from affiliation:', firstAffiliation.departmentName);
-
-            // Find department ID by name
-            const departmentId = firstAffiliation.departmentName ?
-              deptData.find(d => d.name === firstAffiliation.departmentName)?.id : null;
-            console.log('🆔 Mapped department ID:', departmentId);
-
-            // ✅ Set province for ward loading BEFORE form data
-            if (userData.province) {
-              console.log('🌏 Setting province:', userData.province);
-              setSelectedProvince(userData.province);
-            }
-
-            // ✅ Enhanced data extraction with specific field debugging
-            console.log('📋 CCCD from API:', userData.cccd, 'Type:', typeof userData.cccd);
-            console.log('📅 DOB from API:', userData.dob, 'Type:', typeof userData.dob);
-            console.log('📅 PracticingFrom from API:', doctorData.practicingFrom, 'Type:', typeof doctorData.practicingFrom);
-            console.log('👤 Fullname from API:', userData.fullname);
-            console.log('📧 Email from API:', userData.email);
-            console.log('📞 Phone from API:', userData.phoneNumber);
-            console.log('🏠 Province from API:', userData.province);
-            console.log('🏘️ Ward from API:', userData.ward);
-            console.log('🏠 Street from API:', userData.streetAddress);
-            console.log('👨/👩 Gender from API:', userData.gender, 'Type:', typeof userData.gender);
-            console.log('📝 Description from API:', doctorData.description);
-
-            // Parse dates with enhanced debugging
-            const parseDob = safeParseDob(userData.dob);
-            const parsePracticingFrom = safeParseDob(doctorData.practicingFrom);
-
-            // ✅ Extract specialization IDs
-            const specializationIds = doctorData.specializations?.map(s => s.id) || [];
-            console.log('🩺 Specialization IDs:', specializationIds);
-
-            // ✅ Build form data with explicit field mapping
-            const formData = {
-              // User basic info - direct mapping from API
-              fullname: userData.fullname || "",
-              email: userData.email || "",
-              phoneNumber: userData.phoneNumber || "",
-              gender: userData.gender === true ? 'male' : 'female',  // ✅ Explicit boolean to string conversion
-              dob: parseDob,
-              cccd: userData.cccd || "",  // ✅ Direct mapping from API
-              avatarUrl: userData.avatarUrl || "",
-              job: userData.job || 'Bác sĩ',
-
-              // Address info - direct mapping from API
-              province: userData.province || "",
-              ward: userData.ward || "",
-              streetAddress: userData.streetAddress || "",
-
-              // Doctor specific info
-              description: doctorData.description || "",  // ✅ Direct mapping from API
-              practicingFrom: parsePracticingFrom,
-              departmentId: departmentId,
-              specializationIds: specializationIds
-            };
-
-            console.log('✅ FINAL form data to be set:', JSON.stringify(formData, null, 2));
-
-            // ✅ Set form data directly without delay first, then verify
-            form.setFieldsValue(formData);
-            console.log('✅ Form values set successfully (immediate)');
-
-            // ✅ Also set with delay as backup
-            setTimeout(() => {
-              form.setFieldsValue(formData);
-              console.log('✅ Form values set successfully (with delay)');
-
-              // Verify the form was set correctly
-              const currentValues = form.getFieldsValue();
-              console.log('🔍 Current form values after setting:', currentValues);
-              console.log('🔍 CCCD in form:', currentValues.cccd);
-              console.log('🔍 DOB in form:', currentValues.dob);
-              console.log('🔍 Description in form:', currentValues.description);
-              console.log('🔍 Province in form:', currentValues.province);
-              console.log('🔍 Ward in form:', currentValues.ward);
-            }, 200);
-
+            
+            // ✅ Wait a bit for modal to render completely
+            setTimeout(async () => {
+              await setDoctorFormData(doctorData, deptData);
+            }, 100);
+            
             dispatch(setMessage({
               type: 'success',
-              content: `✅ Đã tải thông tin bác sĩ "${userData.fullname}"`
+              content: `✅ Đã tải thông tin bác sĩ "${doctorData.user?.fullname}"`
             }));
+          } else {
+            console.log('❌ No valid doctor data in response, using fallback');
+            setTimeout(() => {
+              setFallbackFormData(staff, deptData);
+            }, 100);
+          }
+
+        } else if (isNurse) {
+          // ✅ ENHANCED: Use getUserById instead of getStaffNurseByUserId
+          const nurseUserId = staff.id || staff.userId || staff.user?.id;
+          console.log('🔄 Attempting to load nurse user with ID:', nurseUserId);
+          console.log('🔍 Available IDs in staff:', {
+            id: staff.id,
+            userId: staff.userId,
+            userNestedId: staff.user?.id,
+            staffId: staff.staffId
+          });
+
+          if (nurseUserId) {
+            try {
+              console.log('🔄 Calling getUserById with user ID:', nurseUserId);
+              const response = await getUserById(nurseUserId);
+              console.log('✅ User detail FULL response:', JSON.stringify(response, null, 2));
+
+              // ✅ ENHANCED response parsing for getUserById
+              let userData = null;
+              if (response?.result) {
+                userData = response.result;
+                console.log('📊 User data from result:', userData);
+              } else if (response?.data) {
+                userData = response.data;
+                console.log('📊 User data from data:', userData);
+              } else if (response && response.id) {
+                userData = response;
+                console.log('📊 User data direct:', userData);
+              } else if (response && (response.fullname || response.email)) {
+                userData = response;
+                console.log('📊 User data by properties:', userData);
+              }
+
+              if (userData) {
+                // ✅ Merge staff data with user data for complete nurse information
+                const mergedNurseData = {
+                  ...userData,
+                  staffId: staff.staffId || userData.staffId,
+                  hospitalId: staff.hospitalId || userData.hospitalId || hospitalId,
+                  hospitalName: staff.hospitalName || userData.hospitalName,
+                  roleId: staff.roleId || userData.roleId,
+                  roleName: staff.roleName || userData.roleName || staff.job,
+                  roleType: staff.roleType || userData.roleType
+                };
+                
+                console.log('📊 Merged nurse data:', mergedNurseData);
+                setNurseDetail(mergedNurseData);
+                
+                // ✅ CRITICAL FIX: Wait for modal to render completely
+                setTimeout(async () => {
+                  await setNurseFormData(mergedNurseData, deptData);
+                }, 300);
+                
+                dispatch(setMessage({
+                  type: 'success',
+                  content: `✅ Đã tải thông tin điều dưỡng "${userData.fullname || userData.name}"`
+                }));
+              } else {
+                console.log('❌ No valid user data in response, using fallback');
+                console.log('📄 Full response for debugging:', response);
+                setTimeout(() => {
+                  setFallbackFormData(staff, deptData);
+                }, 100);
+              }
+
+            } catch (userError) {
+              console.error('❌ Error loading user data:', userError);
+              console.log('🔄 Fallback to staff data due to API error');
+              setTimeout(() => {
+                setFallbackFormData(staff, deptData);
+              }, 100);
+            }
 
           } else {
-            console.log('❌ No valid data in response, using fallback');
-            console.log('📋 Response structure:', response);
-            // Fallback to staff data
-            setFallbackFormData(staff, deptData);
+            console.log('❌ No valid user ID found, using fallback');
+            setTimeout(() => {
+              setFallbackFormData(staff, deptData);
+            }, 100);
           }
+
         } else {
-          console.log('👩‍⚕️ Loading nurse data or no staff ID');
-          // ✅ For nurses, use staff data directly
-          setFallbackFormData(staff, deptData);
+          console.log('🔧 Unknown staff type or missing ID, using fallback data');
+          setTimeout(() => {
+            setFallbackFormData(staff, deptData);
+          }, 100);
         }
 
       } catch (error) {
@@ -308,21 +311,185 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
         }));
 
         // Set fallback data
-        setFallbackFormData(staff, departments);
+        setTimeout(() => {
+          setFallbackFormData(staff, departments);
+        }, 100);
       } finally {
         setInitialLoading(false);
+        console.log('✅ Finished initializing edit modal');
       }
     };
 
     initializeEditModal();
   }, [visible, staff, hospitalId, form, dispatch]);
 
-  // ✅ Enhanced fallback form data setter
-  const setFallbackFormData = (staffData, deptData = departments) => {
-    console.log('📋 Setting fallback data for:', staffData);
+  // ✅ Set doctor form data
+  const setDoctorFormData = async (doctorData, deptData) => {
+    const userData = doctorData.user;
+    const firstAffiliation = doctorData.hospitalAffiliations?.[0] || {};
 
-    // ✅ Try to get data from staff object first
+    console.log('🏥 First affiliation:', firstAffiliation);
+    console.log('🏥 Department name from affiliation:', firstAffiliation.departmentName);
+
+    // Find department ID by name
+    const departmentId = firstAffiliation.departmentName ?
+      deptData.find(d => d.name === firstAffiliation.departmentName)?.id : null;
+    console.log('🆔 Mapped department ID:', departmentId);
+
+    // ✅ Set province for ward loading BEFORE form data
+    if (userData.province) {
+      console.log('🌏 Setting province:', userData.province);
+      setSelectedProvince(userData.province);
+    }
+
+    // Parse dates with enhanced debugging
+    const parseDob = safeParseDob(userData.dob);
+    const parsePracticingFrom = safeParseDob(doctorData.practicingFrom);
+
+    // ✅ Extract specialization IDs
+    const specializationIds = doctorData.specializations?.map(s => s.id) || [];
+    console.log('🩺 Specialization IDs:', specializationIds);
+
+    // ✅ Build form data with explicit field mapping
+    const formData = {
+      // User basic info - direct mapping from API
+      fullname: userData.fullname || "",
+      email: userData.email || "",
+      phoneNumber: userData.phoneNumber || "",
+      gender: userData.gender === true ? 'male' : 'female',
+      dob: parseDob,
+      cccd: userData.cccd || "",
+      avatarUrl: userData.avatarUrl || "",
+      job: userData.job || 'Bác sĩ',
+
+      // Address info - direct mapping from API
+      province: userData.province || "",
+      ward: userData.ward || "",
+      streetAddress: userData.streetAddress || "",
+
+      // Doctor specific info
+      description: doctorData.description || "",
+      practicingFrom: parsePracticingFrom,
+      departmentId: departmentId,
+      specializationIds: specializationIds
+    };
+
+    console.log('✅ FINAL doctor form data to be set:', JSON.stringify(formData, null, 2));
+
+    // ✅ Set form data with multiple attempts
+    form.setFieldsValue(formData);
+    console.log('✅ Doctor form values set successfully');
+
+    // ✅ Force update multiple times
+    setTimeout(() => {
+      form.setFieldsValue(formData);
+      form.validateFields();
+      console.log('✅ Doctor form values set successfully (backup 1)');
+    }, 100);
+
+    setTimeout(() => {
+      form.setFieldsValue(formData);
+      console.log('✅ Doctor form values set successfully (backup 2)');
+    }, 300);
+  };
+
+  // ✅ UPDATED: Enhanced nurse form data setter using getUserById response
+  const setNurseFormData = async (nurseData, deptData) => {
+    console.log('👩‍⚕️ Setting nurse form data...');
+    console.log('📊 Nurse data received:', JSON.stringify(nurseData, null, 2));
+
+    // ✅ Set province for ward loading BEFORE form data
+    if (nurseData.province) {
+      console.log('🌏 Setting nurse province:', nurseData.province);
+      setSelectedProvince(nurseData.province);
+    }
+
+    // Parse dates
+    const parseDob = safeParseDob(nurseData.dob);
+    console.log('📅 Parsed DOB:', parseDob);
+
+    // ✅ Enhanced gender detection from getUserById response
+    const genderValue = nurseData.gender === true ? 'male' : 
+                       nurseData.gender === false ? 'female' : 
+                       nurseData.fullname?.toLowerCase().includes('thi') ? 'female' : 'male';
+
+    // ✅ ENHANCED form data mapping optimized for getUserById response
+    const formData = {
+      // User basic info - direct mapping from getUserById API response
+      fullname: nurseData.fullname || nurseData.name || nurseData.fullName || "",
+      email: nurseData.email || nurseData.emailAddress || "",
+      phoneNumber: nurseData.phoneNumber || nurseData.phone || nurseData.mobilePhone || "",
+      gender: genderValue,
+      dob: parseDob,
+      cccd: nurseData.cccd || nurseData.identityCard || nurseData.citizenId || "",
+      avatarUrl: nurseData.avatarUrl || nurseData.avatar || nurseData.profilePicture || "",
+      job: nurseData.job || nurseData.position || nurseData.roleName || 'Điều dưỡng',
+
+      // Address info - direct mapping from getUserById API response
+      province: nurseData.province || nurseData.city || "",
+      ward: nurseData.ward || nurseData.district || "",
+      streetAddress: nurseData.streetAddress || nurseData.address || nurseData.street || "",
+
+      // Nurse specific info
+      description: nurseData.description || nurseData.bio || "",
+      
+      // Additional nurse fields merged from staff data
+      staffId: nurseData.staffId || nurseData.employeeId || "",
+      hospitalId: nurseData.hospitalId || "",
+      hospitalName: nurseData.hospitalName || nurseData.hospital?.name || "",
+      roleId: nurseData.roleId || "",
+      roleName: nurseData.roleName || "",
+      roleType: nurseData.roleType || ""
+    };
+
+    console.log('✅ FINAL nurse form data to be set:', JSON.stringify(formData, null, 2));
+
+    // ✅ CRITICAL FIX: Multiple form setting attempts with longer delays
+    form.setFieldsValue(formData);
+    console.log('✅ Nurse form values set immediately');
+
+    // ✅ Force form update with increasing delays
+    setTimeout(() => {
+      form.setFieldsValue(formData);
+      const currentValues = form.getFieldsValue();
+      console.log('✅ Nurse form values set with delay 1 (200ms)');
+      console.log('🔍 Current form values after setting:', currentValues);
+    }, 200);
+
+    setTimeout(() => {
+      form.setFieldsValue(formData);
+      form.validateFields();
+      console.log('✅ Nurse form values set with delay 2 (500ms) + validation');
+    }, 500);
+
+    // ✅ Final verification and force update
+    setTimeout(() => {
+      const finalValues = form.getFieldsValue();
+      console.log('🔍 Final form values verification:', finalValues);
+      
+      // Check if critical fields are empty and retry if needed
+      if (!finalValues.fullname && nurseData.fullname) {
+        console.log('⚠️ Form values not set properly, force setting again...');
+        form.setFieldsValue(formData);
+        
+        // One more try with validation
+        setTimeout(() => {
+          form.setFieldsValue(formData);
+          form.validateFields();
+          console.log('🔄 Final force update completed');
+        }, 100);
+      }
+    }, 800);
+  };
+
+  // ✅ ENHANCED fallback form data setter
+  const setFallbackFormData = (staffData, deptData = departments) => {
+    console.log('📋 Setting fallback data...');
+    console.log('📊 Staff data for fallback:', JSON.stringify(staffData, null, 2));
+
+    // ✅ Try to get data from staff object with multiple nested paths
     const staffUser = staffData.user || staffData;
+    console.log('👤 Staff user data:', staffUser);
 
     const parseDob = safeParseDob(staffUser.dob || staffData.dob);
     const parsePracticingFrom = safeParseDob(staffUser.practicingFrom || staffData.practicingFrom);
@@ -330,19 +497,23 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
     const province = staffUser.province || staffData.province;
     if (province) {
       setSelectedProvince(province);
+      console.log('🌏 Fallback province set:', province);
     }
 
+    // ✅ Better gender detection for fallback
+    const fallbackGender = typeof staffUser.gender === 'boolean'
+      ? (staffUser.gender ? 'male' : 'female')
+      : staffData.fullname?.toLowerCase().includes('thi') || staffData.name?.toLowerCase().includes('thi') ? 'female' : 'male';
+
     const fallbackData = {
-      fullname: staffUser.fullname || staffData.fullname || staffData.name || "",
+      fullname: staffUser.fullname || staffUser.name || staffData.fullname || staffData.name || "",
       email: staffUser.email || staffData.email || "",
-      phoneNumber: staffUser.phoneNumber || staffData.phoneNumber || staffData.phone || "",
-      gender: typeof staffUser.gender === 'boolean'
-        ? (staffUser.gender ? 'male' : 'female')
-        : (staffUser.gender || staffData.gender || 'male'),
+      phoneNumber: staffUser.phoneNumber || staffUser.phone || staffData.phoneNumber || staffData.phone || "",
+      gender: fallbackGender,
       dob: parseDob,
-      cccd: staffUser.cccd || staffData.cccd || "",  // ✅ Check both locations
-      avatarUrl: staffUser.avatarUrl || staffData.avatarUrl || staffData.avatar || "",
-      job: staffUser.job || staffData.job || 'Bác sĩ',
+      cccd: staffUser.cccd || staffData.cccd || "",
+      avatarUrl: staffUser.avatarUrl || staffUser.avatar || staffData.avatarUrl || staffData.avatar || "",
+      job: staffUser.job || staffData.job || (staffData.type === 'doctor' ? 'Bác sĩ' : 'Điều dưỡng'),
       province: province || "",
       ward: staffUser.ward || staffData.ward || "",
       streetAddress: staffUser.streetAddress || staffData.streetAddress || "",
@@ -352,14 +523,17 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
       practicingFrom: parsePracticingFrom
     };
 
-    console.log('📋 Fallback form data:', fallbackData);
+    console.log('📋 FINAL fallback form data:', JSON.stringify(fallbackData, null, 2));
+    
+    // ✅ Set fallback data with multiple attempts
     form.setFieldsValue(fallbackData);
+    console.log('✅ Fallback form values set');
 
-    // ✅ Verify fallback data was set
     setTimeout(() => {
+      form.setFieldsValue(fallbackData);
       const currentValues = form.getFieldsValue();
       console.log('🔍 Fallback form values after setting:', currentValues);
-    }, 100);
+    }, 200);
 
     dispatch(setMessage({
       type: 'info',
@@ -373,6 +547,7 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
       console.log('🚪 Modal closed, resetting form');
       form.resetFields();
       setDoctorDetail(null);
+      setNurseDetail(null);
       setSelectedProvince(null);
       setWards([]);
       setLoading(false);
@@ -465,11 +640,12 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
         response = await updateDoctor(updateData);
 
       } else {
-        // Nurse/User update
-        const nurseId = staff.id || staff.userId;
+        // ✅ ENHANCED nurse update with getUserById data
+        const nurseUserId = nurseDetail?.id || staff.id || staff.userId || staff.user?.id;
+        console.log('👩‍⚕️ Nurse user ID for update:', nurseUserId);
 
         const updateData = {
-          id: parseInt(nurseId),
+          id: parseInt(nurseUserId),
           fullname: values.fullname?.trim() || "",
           phoneNumber: values.phoneNumber?.trim() || "",
           email: values.email?.trim() || "",
@@ -480,11 +656,17 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
           cccd: values.cccd?.trim() || "",
           province: values.province?.trim() || "",
           ward: values.ward?.trim() || "",
-          streetAddress: values.streetAddress?.trim() || ""
+          streetAddress: values.streetAddress?.trim() || "",
+          
+          // ✅ Include nurse-specific fields from merged data
+          description: values.description?.trim() || "",
+          staffId: nurseDetail?.staffId || values.staffId || "",
+          hospitalId: nurseDetail?.hospitalId || hospitalId,
+          roleId: nurseDetail?.roleId || values.roleId
         };
 
         console.log('🔄 Nurse update payload:', updateData);
-        response = await updateUser(nurseId, updateData);
+        response = await updateUser(nurseUserId, updateData);
       }
 
       // Success handling
@@ -540,6 +722,7 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
     setSelectedProvince(null);
     setWards([]);
     setDoctorDetail(null);
+    setNurseDetail(null);
     setLoading(false);
 
     if (typeof onCancel === 'function') {
@@ -548,6 +731,8 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
   };
 
   if (!staff) return null;
+
+  const isDoctor = staff.type === 'doctor' || staff.editApiType === 'updateDoctor';
 
   return (
     <>
@@ -560,7 +745,7 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <EditOutlined style={{ color: '#1890ff', marginRight: 8, fontSize: '18px' }} />
               <span style={{ fontSize: '16px', fontWeight: 600 }}>
-                Chỉnh sửa {(staff.type === 'doctor' || staff.editApiType === 'updateDoctor') ? 'Bác sĩ' : 'Điều dưỡng'} - {staff.fullname || staff.name}
+                Chỉnh sửa {isDoctor ? 'Bác sĩ' : 'Điều dưỡng'} - {staff.fullname || staff.name}
               </span>
             </div>
           }
@@ -716,7 +901,7 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
                 </div>
 
                 {/* Thông tin chuyên môn - chỉ cho bác sĩ */}
-                {(staff.type === 'doctor' || staff.editApiType === 'updateDoctor') && (
+                {isDoctor && (
                   <div style={{
                     marginBottom: 24,
                     padding: '20px',
@@ -808,16 +993,82 @@ const EditStaff = ({ visible, onCancel, onSuccess, staff }) => {
                   </div>
                 )}
 
+                {/* ✅ Thông tin chuyên môn cho điều dưỡng */}
+                {!isDoctor && (
+                  <div style={{
+                    marginBottom: 24,
+                    padding: '20px',
+                    background: '#f6ffed',
+                    borderRadius: '8px',
+                    border: '1px solid #b7eb8f'
+                  }}>
+                    <h3 style={{
+                      color: '#52c41a',
+                      marginBottom: 16,
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}>
+                      <HeartOutlined style={{ marginRight: 8 }} />
+                      Thông tin nghề nghiệp
+                    </h3>
+
+                    <Form.Item
+                      name="description"
+                      label="Mô tả công việc"
+                    >
+                      <TextArea
+                        rows={3}
+                        placeholder="Mô tả ngắn gọn về công việc và kinh nghiệm"
+                      />
+                    </Form.Item>
+
+                    <Row gutter={16}>
+                      <Col xs={24} md={12}>
+                        <Form.Item
+                          name="job"
+                          label="Chức vụ"
+                        >
+                          <Input placeholder="Điều dưỡng viên, Y tá trưởng..." />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    {/* ✅ Display nurse-specific info from getUserById + staff merged data */}
+                    {nurseDetail && (
+                      <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            name="staffId"
+                            label="Mã nhân viên"
+                          >
+                            <Input placeholder="Staff ID" disabled style={{ backgroundColor: '#f5f5f5' }} />
+                          </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            name="roleName"
+                            label="Vai trò"
+                          >
+                            <Input placeholder="Role Name" disabled style={{ backgroundColor: '#f5f5f5' }} />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    )}
+                  </div>
+                )}
+
                 {/* Thông tin địa chỉ */}
                 <div style={{
                   marginBottom: 24,
                   padding: '20px',
-                  background: '#f6ffed',
+                  background: '#fff7e6',
                   borderRadius: '8px',
-                  border: '1px solid #b7eb8f'
+                  border: '1px solid #ffd591'
                 }}>
                   <h3 style={{
-                    color: '#52c41a',
+                    color: '#fa8c16',
                     marginBottom: 16,
                     fontSize: '16px',
                     fontWeight: 600,

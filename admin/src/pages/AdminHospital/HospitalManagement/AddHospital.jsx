@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { Modal, Form, Input, Select, Row, Col, Button, Spin, TimePicker } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
-import { useDispatch } from 'react-redux'; // ✅ Add Redux import
-import { setMessage } from '../../../redux/slices/messageSlice'; // ✅ Add message slice import
+import React, { useState, useEffect } from 'react';
+import { Modal, Form, Input, Select, Row, Col, Button, Spin, TimePicker, message } from 'antd';
+import { PlusOutlined, MedicineBoxOutlined } from '@ant-design/icons';
+import { useDispatch, useSelector } from 'react-redux';
+import { setMessage, clearMessage } from '../../../redux/slices/messageSlice';
 import { createHospital } from '../../../services/hospitalService';
 import dayjs from 'dayjs';
 
@@ -11,289 +11,448 @@ const { TextArea } = Input;
 
 const AddHospital = ({ visible, onCancel, onSuccess }) => {
     const [form] = Form.useForm();
-    const [loading, setLoading] = useState(false); // ✅ Fix: use 'loading' instead of 'spinning'
-    const dispatch = useDispatch(); // ✅ Add Redux dispatch hook
+    const [loading, setLoading] = useState(false);
+    
+    // ✅ Redux hooks for message handling
+    const dispatch = useDispatch();
+    const messageState = useSelector(state => state.message);
+    const [messageApi, contextHolder] = message.useMessage();
+
+    // ✅ Message handler using Redux pattern
+    useEffect(() => {
+        if (messageState && messageState.content) {
+            messageApi.open({
+                type: messageState.type,
+                content: messageState.content,
+            });
+            dispatch(clearMessage());
+        }
+    }, [messageState, messageApi, dispatch]);
+
+    // ✅ Clear message when modal opens/closes
+    useEffect(() => {
+        if (visible) {
+            dispatch(clearMessage());
+            form.resetFields();
+        } else {
+            dispatch(clearMessage());
+        }
+    }, [visible, dispatch, form]);
 
     const handleSubmit = async (values) => {
         setLoading(true);
+        dispatch(clearMessage());
 
         try {
-            // ✅ Get current date for time formatting
-            const currentDate = new Date().toISOString().split('T')[0]; // "2025-07-23"
+            dispatch(setMessage({
+                type: 'info',
+                content: '⏳ Đang tạo bệnh viện mới...'
+            }));
 
-            // ✅ Transform data to match Swagger schema exactly
+            // ✅ Get current date for time formatting
+            const currentDate = new Date().toISOString().split('T')[0];
+
+            // ✅ Transform data to match exact API schema
             const hospitalData = {
-                code: values.code,
-                name: values.name,
-                address: values.address,
-                image: values.image || "image1.img", // Default or from form
-                googleMapUri: values.googleMapUri || "string",
-                banner: values.banner || "string",
-                type: parseInt(values.type) || 1,
-                phoneNumber: values.phoneNumber,
-                email: values.email,
-                // ✅ Convert time to ISO datetime format
+                code: values.code?.trim() || "",
+                name: values.name?.trim() || "",
+                address: values.address?.trim() || "",
+                image: values.image?.trim() || "",
+                googleMapUri: values.googleMapUri?.trim() || "",
+                banner: values.banner?.trim() || "",
+                type: parseInt(values.type) || 0,
+                phoneNumber: values.phoneNumber?.trim() || "",
+                email: values.email?.trim() || "",
+                // ✅ Convert time to ISO datetime format matching API
                 openTime: values.openTime
-                    ? `${currentDate}T${values.openTime.format('HH:mm:ss')}.000Z`
-                    : `${currentDate}T08:00:00.000Z`,
+                    ? `${currentDate}T${values.openTime.format('HH:mm:ss')}.988Z`
+                    : `2025-08-16T08:00:00.988Z`,
                 closeTime: values.closeTime
-                    ? `${currentDate}T${values.closeTime.format('HH:mm:ss')}.000Z`
-                    : `${currentDate}T18:00:00.000Z`
+                    ? `${currentDate}T${values.closeTime.format('HH:mm:ss')}.988Z`
+                    : `2025-08-16T18:00:00.988Z`
             };
 
-            console.log('📤 Sending hospital data (Swagger format):', hospitalData);
+            console.log('📤 Dữ liệu bệnh viện gửi đi:', hospitalData);
 
             const response = await createHospital(hospitalData);
+            console.log('📥 Phản hồi từ API:', response);
 
-            if (response?.success || response?.result) {
+            // ✅ Enhanced success validation
+            if (response?.success || response?.result || response?.id) {
                 dispatch(setMessage({
                     type: 'success',
-                    content: 'Hospital created successfully! 🎉',
-                    duration: 4
+                    content: `🎉 Tạo bệnh viện "${hospitalData.name}" thành công!`
                 }));
+
                 form.resetFields();
-                onSuccess();
+                
+                if (onSuccess && typeof onSuccess === 'function') {
+                    onSuccess(response);
+                }
+
+                setTimeout(() => {
+                    handleCancel();
+                }, 1500);
             } else {
-                throw new Error('Invalid response from server');
+                throw new Error('Phản hồi không hợp lệ từ server');
             }
+
         } catch (error) {
-            console.error('❌ Error creating hospital:', error);
+            console.error('❌ Lỗi khi tạo bệnh viện:', error);
 
-            let errorMessage = 'Failed to create hospital. Please try again.';
+            let errorMessage = 'Không thể tạo bệnh viện. Vui lòng thử lại.';
 
-            // ✅ Handle specific error responses
             if (error.response?.data) {
                 const errorData = error.response.data;
+                console.log('🔍 Error response data:', errorData);
 
                 if (errorData.title) {
                     switch (errorData.title) {
                         case 'HOSPITAL_CODE_EXISTS':
-                            errorMessage = 'Hospital code already exists. Please use a different code.';
+                            errorMessage = '🏥 Mã bệnh viện đã tồn tại! Vui lòng sử dụng mã khác.';
                             break;
                         case 'HOSPITAL_NAME_EXISTS':
-                            errorMessage = 'Hospital name already exists. Please use a different name.';
+                            errorMessage = '🏥 Tên bệnh viện đã tồn tại! Vui lòng sử dụng tên khác.';
                             break;
                         case 'EMAIL_ALREADY_EXISTS':
-                            errorMessage = 'This email is already registered. Please use a different email.';
+                            errorMessage = '📧 Email này đã được đăng ký! Vui lòng sử dụng email khác.';
                             break;
                         case 'PHONE_ALREADY_EXISTS':
-                            errorMessage = 'This phone number is already registered. Please use a different phone number.';
-                            break;
-                        case 'VALIDATION_ERROR':
-                            errorMessage = 'Please check your input data. Some fields contain invalid information.';
+                            errorMessage = '📱 Số điện thoại này đã được đăng ký! Vui lòng sử dụng số điện thoại khác.';
                             break;
                         default:
-                            errorMessage = errorData.title.replace(/_/g, ' ').toLowerCase();
+                            errorMessage = `❌ ${errorData.title.replace(/_/g, ' ')} - Vui lòng thử lại.`;
                             break;
                     }
+                } else if (errorData.message) {
+                    errorMessage = `❌ ${errorData.message}`;
                 }
-                else if (errorData.errors) {
-                    const validationErrors = [];
-                    Object.keys(errorData.errors).forEach(field => {
-                        const fieldErrors = errorData.errors[field];
-                        if (Array.isArray(fieldErrors)) {
-                            validationErrors.push(...fieldErrors.filter(err => typeof err === 'string'));
-                        } else if (typeof fieldErrors === 'string') {
-                            validationErrors.push(fieldErrors);
-                        }
-                    });
-                    if (validationErrors.length > 0) {
-                        errorMessage = validationErrors.join('. ');
-                    }
-                }
-                else if (errorData.message) {
-                    errorMessage = errorData.message;
-                }
+            } else if (error.message) {
+                errorMessage = `❌ ${error.message}`;
+            }
+
+            if (error.code === 'NETWORK_ERROR' || !error.response) {
+                errorMessage = '🌐 Lỗi kết nối mạng! Vui lòng kiểm tra kết nối internet và thử lại.';
             }
 
             dispatch(setMessage({
                 type: 'error',
-                content: `❌ ${errorMessage}`,
-                duration: 6
+                content: errorMessage
             }));
+
         } finally {
             setLoading(false);
         }
     };
 
+    const handleCancel = () => {
+        dispatch(clearMessage());
+        form.resetFields();
+        
+        if (onCancel && typeof onCancel === 'function') {
+            onCancel();
+        }
+    };
+
     return (
-        <Modal
-            title={
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <PlusOutlined style={{ color: '#1890ff', marginRight: 8 }} />
-                    Add New Hospital
-                </div>
-            }
-            open={visible} // ✅ Fix: use 'open' instead of 'visible' for newer Ant Design
-            onCancel={onCancel}
-            footer={null}
-            width={900}
-            destroyOnClose
-        >
-            <Spin spinning={loading}> {/* ✅ Fix: use 'loading' state */}
-                <div className="hospital-form-container">
+        <>
+            {contextHolder}
+            <Modal
+                title={
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <MedicineBoxOutlined style={{ color: '#1890ff', marginRight: 8 }} />
+                        Thêm Bệnh viện mới
+                    </div>
+                }
+                open={visible}
+                onCancel={handleCancel}
+                footer={null}
+                width={800}
+                destroyOnClose
+                maskClosable={false}
+                style={{ top: 20 }}
+            >
+                <Spin spinning={loading} tip="Đang tạo bệnh viện...">
                     <Form
                         form={form}
                         layout="vertical"
                         onFinish={handleSubmit}
                         initialValues={{
-                            type: 1, // Default to General Hospital
+                            type: 0,
                             openTime: dayjs('08:00', 'HH:mm'),
                             closeTime: dayjs('18:00', 'HH:mm')
                         }}
+                        scrollToFirstError
                     >
-                        {/* Basic Information */}
-                        <Row gutter={16}>
-                            <Col xs={24} md={12}>
-                                <Form.Item
-                                    name="name"
-                                    label="Hospital Name"
-                                    rules={[{ required: true, message: 'Please enter hospital name' }]}
-                                >
-                                    <Input placeholder="City General Hospital" />
-                                </Form.Item>
-                            </Col>
+                        {/* ✅ Thông tin bắt buộc */}
+                        <div style={{ 
+                            marginBottom: 24, 
+                            padding: '16px', 
+                            background: '#f0f7ff', 
+                            borderRadius: '8px',
+                            border: '1px solid #d6e4ff'
+                        }}>
+                            <h4 style={{ color: '#1890ff', marginBottom: 16 }}>🏥 Thông tin bệnh viện</h4>
+                            
+                            <Row gutter={16}>
+                                <Col xs={24} md={12}>
+                                    <Form.Item
+                                        name="name"
+                                        label="Tên bệnh viện"
+                                        rules={[
+                                            { required: true, message: 'Vui lòng nhập tên bệnh viện' },
+                                            { min: 3, message: 'Tên bệnh viện phải có ít nhất 3 ký tự' },
+                                            { max: 200, message: 'Tên bệnh viện không được vượt quá 200 ký tự' }
+                                        ]}
+                                        hasFeedback
+                                    >
+                                        <Input 
+                                            placeholder="Bệnh viện Đa khoa Thành phố" 
+                                            showCount
+                                            maxLength={200}
+                                        />
+                                    </Form.Item>
+                                </Col>
 
-                            <Col xs={24} md={12}>
-                                <Form.Item
-                                    name="code"
-                                    label="Hospital Code"
-                                    rules={[{ required: true, message: 'Please enter hospital code' }]}
-                                >
-                                    <Input placeholder="CGH001" />
-                                </Form.Item>
-                            </Col>
-                        </Row>
+                                <Col xs={24} md={12}>
+                                    <Form.Item
+                                        name="code"
+                                        label="Mã bệnh viện"
+                                        rules={[
+                                            { required: true, message: 'Vui lòng nhập mã bệnh viện' },
+                                            { min: 2, message: 'Mã bệnh viện phải có ít nhất 2 ký tự' },
+                                            { max: 20, message: 'Mã bệnh viện không được vượt quá 20 ký tự' }
+                                        ]}
+                                        hasFeedback
+                                    >
+                                        <Input 
+                                            placeholder="BV001" 
+                                            showCount
+                                            maxLength={20}
+                                        />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
 
-                        {/* Type and Contact */}
-                        <Row gutter={16}>
-                            <Col xs={24} md={8}>
-                                <Form.Item
-                                    name="type"
-                                    label="Hospital Type"
-                                    rules={[{ required: true, message: 'Please select hospital type' }]}
-                                >
-                                    <Select placeholder="Select type">
-                                        <Option value={1}>General Hospital</Option>
-                                        <Option value={2}>Specialized Hospital</Option>
-                                        <Option value={3}>Community Hospital</Option>
-                                    </Select>
-                                </Form.Item>
-                            </Col>
+                            <Form.Item
+                                name="address"
+                                label="Địa chỉ bệnh viện"
+                                rules={[
+                                    { required: true, message: 'Vui lòng nhập địa chỉ' },
+                                    { min: 5, message: 'Địa chỉ phải có ít nhất 5 ký tự' },
+                                    { max: 500, message: 'Địa chỉ không được vượt quá 500 ký tự' }
+                                ]}
+                                hasFeedback
+                            >
+                                <Input 
+                                    placeholder="123 Đường ABC, Phường XYZ, Quận 1, TP.HCM" 
+                                    showCount
+                                    maxLength={500}
+                                />
+                            </Form.Item>
 
-                            <Col xs={24} md={8}>
-                                <Form.Item
-                                    name="phoneNumber"
-                                    label="Phone Number"
-                                    rules={[{ required: true, message: 'Please enter phone number' }]}
-                                >
-                                    <Input placeholder="+84-123-456-789" />
-                                </Form.Item>
-                            </Col>
+                            <Row gutter={16}>
+                                <Col xs={24} md={8}>
+                                    <Form.Item
+                                        name="type"
+                                        label="Loại hình"
+                                        rules={[{ required: true, message: 'Vui lòng chọn loại hình' }]}
+                                        hasFeedback
+                                    >
+                                        <Select placeholder="Chọn loại hình">
+                                            <Option value={0}>🏥 Bệnh viện Tổng hợp</Option>
+                                            <Option value={1}>🩺 Bệnh viện Chuyên khoa</Option>
+                                            <Option value={2}>🏘️ Bệnh viện Cộng đồng</Option>
+                                            <Option value={3}>🏢 Bệnh viện Tư nhân</Option>
+                                        </Select>
+                                    </Form.Item>
+                                </Col>
 
-                            <Col xs={24} md={8}>
-                                <Form.Item
-                                    name="email"
-                                    label="Email"
-                                    rules={[
-                                        { required: true, message: 'Please enter email' },
-                                        { type: 'email', message: 'Please enter valid email' }
-                                    ]}
-                                >
-                                    <Input placeholder="contact@hospital.com" />
-                                </Form.Item>
-                            </Col>
-                        </Row>
+                                <Col xs={24} md={8}>
+                                    <Form.Item
+                                        name="phoneNumber"
+                                        label="Số điện thoại"
+                                        rules={[
+                                            { required: true, message: 'Vui lòng nhập số điện thoại' },
+                                            { pattern: /^[0-9+\-\s()]+$/, message: 'Số điện thoại không hợp lệ' },
+                                            { min: 10, message: 'Số điện thoại phải có ít nhất 10 ký tự' }
+                                        ]}
+                                        hasFeedback
+                                    >
+                                        <Input placeholder="0123-456-789" />
+                                    </Form.Item>
+                                </Col>
 
-                        {/* Address */}
-                        <Form.Item
-                            name="address"
-                            label="Address"
-                            rules={[{ required: true, message: 'Please enter address' }]}
-                        >
-                            <Input placeholder="123 Main Street, District 1, Ho Chi Minh City" />
-                        </Form.Item>
+                                <Col xs={24} md={8}>
+                                    <Form.Item
+                                        name="email"
+                                        label="Email"
+                                        rules={[
+                                            { required: true, message: 'Vui lòng nhập email' },
+                                            { type: 'email', message: 'Vui lòng nhập email hợp lệ' },
+                                            { max: 100, message: 'Email không được vượt quá 100 ký tự' }
+                                        ]}
+                                        hasFeedback
+                                    >
+                                        <Input placeholder="lienhe@benhvien.com" />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                        </div>
 
-                        {/* Operating Hours */}
-                        <Row gutter={16}>
-                            <Col xs={24} md={12}>
-                                <Form.Item
-                                    name="openTime"
-                                    label="Opening Time"
-                                    rules={[{ required: true, message: 'Please select opening time' }]}
-                                >
-                                    <TimePicker
-                                        style={{ width: '100%' }}
-                                        format="HH:mm"
-                                        placeholder="Select opening time"
-                                    />
-                                </Form.Item>
-                            </Col>
+                        {/* ✅ Giờ hoạt động */}
+                        <div style={{ 
+                            marginBottom: 24, 
+                            padding: '16px', 
+                            background: '#f6ffed', 
+                            borderRadius: '8px',
+                            border: '1px solid #b7eb8f'
+                        }}>
+                            <h4 style={{ color: '#52c41a', marginBottom: 16 }}>⏰ Giờ hoạt động</h4>
 
-                            <Col xs={24} md={12}>
-                                <Form.Item
-                                    name="closeTime"
-                                    label="Closing Time"
-                                    rules={[{ required: true, message: 'Please select closing time' }]}
-                                >
-                                    <TimePicker
-                                        style={{ width: '100%' }}
-                                        format="HH:mm"
-                                        placeholder="Select closing time"
-                                    />
-                                </Form.Item>
-                            </Col>
-                        </Row>
+                            <Row gutter={16}>
+                                <Col xs={24} md={12}>
+                                    <Form.Item
+                                        name="openTime"
+                                        label="Giờ mở cửa"
+                                        rules={[{ required: true, message: 'Vui lòng chọn giờ mở cửa' }]}
+                                        hasFeedback
+                                    >
+                                        <TimePicker
+                                            style={{ width: '100%' }}
+                                            format="HH:mm"
+                                            placeholder="Chọn giờ mở cửa"
+                                            showNow={false}
+                                        />
+                                    </Form.Item>
+                                </Col>
 
-                        {/* Media URLs */}
-                        <Row gutter={16}>
-                            <Col xs={24} md={12}>
-                                <Form.Item
-                                    name="image"
-                                    label="Hospital Logo/Image URL"
-                                >
-                                    <Input placeholder="https://example.com/hospital-logo.png" />
-                                </Form.Item>
-                            </Col>
+                                <Col xs={24} md={12}>
+                                    <Form.Item
+                                        name="closeTime"
+                                        label="Giờ đóng cửa"
+                                        rules={[
+                                            { required: true, message: 'Vui lòng chọn giờ đóng cửa' },
+                                            ({ getFieldValue }) => ({
+                                                validator(_, value) {
+                                                    const openTime = getFieldValue('openTime');
+                                                    if (!value || !openTime || value.isAfter(openTime)) {
+                                                        return Promise.resolve();
+                                                    }
+                                                    return Promise.reject(new Error('Giờ đóng cửa phải sau giờ mở cửa!'));
+                                                },
+                                            }),
+                                        ]}
+                                        hasFeedback
+                                    >
+                                        <TimePicker
+                                            style={{ width: '100%' }}
+                                            format="HH:mm"
+                                            placeholder="Chọn giờ đóng cửa"
+                                            showNow={false}
+                                        />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                        </div>
 
-                            <Col xs={24} md={12}>
-                                <Form.Item
-                                    name="banner"
-                                    label="Banner Image URL"
-                                >
-                                    <Input placeholder="https://example.com/hospital-banner.png" />
-                                </Form.Item>
-                            </Col>
-                        </Row>
+                        {/* ✅ Hình ảnh và liên kết (Tùy chọn) */}
+                        <div style={{ 
+                            marginBottom: 24, 
+                            padding: '16px', 
+                            background: '#fff7e6', 
+                            borderRadius: '8px',
+                            border: '1px solid #ffd591'
+                        }}>
+                            <h4 style={{ color: '#faad14', marginBottom: 16 }}>🖼️ Hình ảnh (Tùy chọn)</h4>
 
-                        {/* Google Maps */}
-                        <Form.Item
-                            name="googleMapUri"
-                            label="Google Maps Embed URI"
-                        >
-                            <TextArea
-                                rows={3}
-                                placeholder="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d..."
-                            />
-                        </Form.Item>
+                            <Row gutter={16}>
+                                <Col xs={24} md={12}>
+                                    <Form.Item
+                                        name="image"
+                                        label="URL Logo/Hình ảnh"
+                                        rules={[
+                                            { type: 'url', message: 'Vui lòng nhập URL hợp lệ' }
+                                        ]}
+                                    >
+                                        <Input placeholder="https://example.com/logo.png" />
+                                    </Form.Item>
+                                </Col>
 
-                        {/* Action Buttons */}
+                                <Col xs={24} md={12}>
+                                    <Form.Item
+                                        name="banner"
+                                        label="URL Banner"
+                                        rules={[
+                                            { type: 'url', message: 'Vui lòng nhập URL hợp lệ' }
+                                        ]}
+                                    >
+                                        <Input placeholder="https://example.com/banner.png" />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+
+                            <Form.Item
+                                name="googleMapUri"
+                                label="Liên kết Google Maps"
+                                rules={[
+                                    { type: 'url', message: 'Vui lòng nhập URL hợp lệ' }
+                                ]}
+                            >
+                                <TextArea
+                                    rows={2}
+                                    placeholder="https://www.google.com/maps/embed?pb=..."
+                                    showCount
+                                    maxLength={1000}
+                                />
+                            </Form.Item>
+                        </div>
+
+                        {/* ✅ Lưu ý ngắn gọn */}
+                        <div style={{
+                            marginBottom: 24,
+                            padding: '12px 16px',
+                            background: '#f6ffed',
+                            borderRadius: '6px',
+                            border: '1px solid #b7eb8f',
+                            fontSize: '13px'
+                        }}>
+                            <div style={{ color: '#389e0d', fontWeight: 500, marginBottom: 4 }}>
+                                💡 Lưu ý:
+                            </div>
+                            <div style={{ color: '#666', lineHeight: '1.4' }}>
+                                • <strong>Mã bệnh viện</strong> và <strong>Email</strong> phải là duy nhất<br />
+                                • <strong>Hình ảnh</strong> có thể bổ sung sau khi tạo bệnh viện
+                            </div>
+                        </div>
+
+                        {/* ✅ Nút hành động */}
                         <Row justify="end" gutter={8}>
                             <Col>
-                                <Button onClick={onCancel}>
-                                    Cancel
+                                <Button onClick={handleCancel} disabled={loading}>
+                                    Hủy
                                 </Button>
                             </Col>
                             <Col>
-                                <Button type="primary" htmlType="submit" loading={loading}>
-                                    Create Hospital
+                                <Button 
+                                    type="primary" 
+                                    htmlType="submit" 
+                                    loading={loading}
+                                    icon={<PlusOutlined />}
+                                    size="large"
+                                    style={{
+                                        backgroundColor: '#1890ff',
+                                        borderColor: '#1890ff'
+                                    }}
+                                >
+                                    {loading ? 'Đang tạo...' : 'Tạo Bệnh viện'}
                                 </Button>
                             </Col>
                         </Row>
                     </Form>
-                </div>
-            </Spin>
-        </Modal>
+                </Spin>
+            </Modal>
+        </>
     );
 };
 

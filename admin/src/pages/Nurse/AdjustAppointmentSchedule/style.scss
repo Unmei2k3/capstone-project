@@ -1,7 +1,10 @@
-.fc-event-cancelled {
-  opacity: 0.5;
-  pointer-events: none; /* tránh chọn nhầm */
-}
+
 .fc-event-completed {
   opacity: 0.7;
+}
+.fc-event-title {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 3em;
 }

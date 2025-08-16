@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Tabs, Button, Input, Row, Col, Card, Badge, Select } from 'antd';
+import { Tabs, Button, Input, Row, Col, Card, Badge } from 'antd';
 import { PlusOutlined, SearchOutlined, MedicineBoxOutlined } from '@ant-design/icons';
 import HospitalTable from './HospitalTable';
 import AddHospital from './AddHospital';
@@ -7,7 +7,6 @@ import { getAllHospitals } from '../../../services/hospitalService';
 import './HospitalManagement.scss';
 
 const { TabPane } = Tabs;
-const { Option } = Select;
 
 const HospitalManagement = () => {
   const [hospitals, setHospitals] = useState([]);
@@ -16,7 +15,6 @@ const HospitalManagement = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -28,15 +26,14 @@ const HospitalManagement = () => {
     inactive: 0,
   });
 
-  const fetchHospitals = async (page = 1, pageSize = 10, search = '', status = 'all', type = 'all') => {
-    console.log('HospitalManagement: fetchHospitals called with:', { page, pageSize, search, status, type });
+  const fetchHospitals = async (page = 1, pageSize = 10, search = '', status = 'all') => {
+    console.log('🏥 HospitalManagement: fetchHospitals được gọi với:', { page, pageSize, search, status });
     
     setLoading(true);
     try {
       const response = await getAllHospitals();
-      console.log('HospitalManagement: getAllHospitals response:', response);
+      console.log('📥 HospitalManagement: Phản hồi getAllHospitals:', response);
 
-   
       let allData = [];
       
       if (response && response.result && Array.isArray(response.result)) {
@@ -45,43 +42,35 @@ const HospitalManagement = () => {
         allData = response;
       }
 
-      console.log('HospitalManagement: Processed data:', allData);
+      console.log('📋 HospitalManagement: Dữ liệu đã xử lý:', allData);
 
-     
+      // ✅ Đảm bảo dữ liệu có trường status
       allData = allData.map(hospital => ({
         ...hospital,
-        status: hospital.status || 'active',
-        type: hospital.type || hospital.hospitalType || 'General'
+        status: hospital.status || 'active'
       }));
 
       setAllHospitals(allData);
 
-
       let filteredData = allData;
 
-      // Filter by search text
+      // ✅ Lọc theo từ khóa tìm kiếm (chỉ cần tên, địa chỉ, email, phone)
       if (search && search.trim() !== '') {
         const searchLower = search.toLowerCase();
         filteredData = filteredData.filter(hospital =>
           hospital.name?.toLowerCase().includes(searchLower) ||
           hospital.address?.toLowerCase().includes(searchLower) ||
-          hospital.email?.toLowerCase().includes(searchLower)
+          hospital.email?.toLowerCase().includes(searchLower) ||
+          hospital.phoneNumber?.toLowerCase().includes(searchLower)
         );
       }
 
-      // Filter by status
+      // ✅ Lọc theo trạng thái
       if (status && status !== 'all') {
         filteredData = filteredData.filter(hospital => hospital.status === status);
       }
 
-      // Filter by type
-      if (type && type !== 'all') {
-        filteredData = filteredData.filter(hospital => 
-          hospital.type === type || hospital.hospitalType === type
-        );
-      }
-
- 
+      // ✅ Phân trang dữ liệu
       const startIndex = (page - 1) * pageSize;
       const endIndex = startIndex + pageSize;
       const paginatedData = filteredData.slice(startIndex, endIndex);
@@ -93,7 +82,7 @@ const HospitalManagement = () => {
         total: filteredData.length,
       });
 
-  
+      // ✅ Cập nhật số lượng bệnh viện
       setCounts({
         all: allData.length,
         active: allData.filter(hospital => hospital.status === 'active').length,
@@ -101,9 +90,9 @@ const HospitalManagement = () => {
       });
 
     } catch (error) {
-      console.error('Failed to fetch hospitals:', error);
+      console.error('❌ Lỗi khi tải danh sách bệnh viện:', error);
       
-      // Reset data on error
+      // ✅ Reset dữ liệu khi có lỗi
       setHospitals([]);
       setAllHospitals([]);
       setPagination({
@@ -121,49 +110,43 @@ const HospitalManagement = () => {
     }
   };
 
-
+  // ✅ Debounce để tối ưu hóa tìm kiếm
   const debouncedFetchHospitals = useCallback(
-    debounce((search, status, type) => {
-      fetchHospitals(1, pagination.pageSize, search, status, type);
+    debounce((search, status) => {
+      fetchHospitals(1, pagination.pageSize, search, status);
     }, 300),
     [pagination.pageSize]
   );
 
-  
+  // ✅ Effect cho tìm kiếm và lọc
   useEffect(() => {
     if (allHospitals.length > 0) {
-      debouncedFetchHospitals(searchText, statusFilter, typeFilter);
+      debouncedFetchHospitals(searchText, statusFilter);
     }
-  }, [searchText, debouncedFetchHospitals, statusFilter, typeFilter, allHospitals.length]);
+  }, [searchText, debouncedFetchHospitals, statusFilter, allHospitals.length]);
 
-  // Initial data load
+  // ✅ Tải dữ liệu ban đầu
   useEffect(() => {
-    fetchHospitals(pagination.current, pagination.pageSize, searchText, statusFilter, typeFilter);
+    fetchHospitals(pagination.current, pagination.pageSize, searchText, statusFilter);
   }, []);
 
   const handleTableChange = (paginationConfig) => {
-    fetchHospitals(paginationConfig.current, paginationConfig.pageSize, searchText, statusFilter, typeFilter);
+    fetchHospitals(paginationConfig.current, paginationConfig.pageSize, searchText, statusFilter);
   };
 
   const handleSearch = () => {
-    fetchHospitals(1, pagination.pageSize, searchText, statusFilter, typeFilter);
+    fetchHospitals(1, pagination.pageSize, searchText, statusFilter);
   };
 
- 
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearchText(value);
     setPagination(prev => ({ ...prev, current: 1 }));
   };
 
-  const handleStatusFilter = (value) => {
-    setStatusFilter(value);
-    fetchHospitals(1, pagination.pageSize, searchText, value, typeFilter);
-  };
-
-  const handleTypeFilter = (value) => {
-    setTypeFilter(value);
-    fetchHospitals(1, pagination.pageSize, searchText, statusFilter, value);
+  const handleStatusFilter = (status) => {
+    setStatusFilter(status);
+    fetchHospitals(1, pagination.pageSize, searchText, status);
   };
 
   const handleAddHospital = () => {
@@ -172,10 +155,10 @@ const HospitalManagement = () => {
 
   const handleAddHospitalSuccess = () => {
     setShowAddModal(false);
-    fetchHospitals(pagination.current, pagination.pageSize, searchText, statusFilter, typeFilter);
+    fetchHospitals(pagination.current, pagination.pageSize, searchText, statusFilter);
   };
 
-  
+  // ✅ Hàm lọc bệnh viện theo trạng thái
   const getFilteredHospitals = (status) => {
     if (status === 'all') return hospitals;
     return allHospitals.filter(hospital => hospital.status === status);
@@ -187,10 +170,13 @@ const HospitalManagement = () => {
         <Col span={24}>
           <Row justify="space-between" align="middle">
             <Col>
-              <h2>
+              <h2 style={{ margin: 0, color: '#1890ff', fontSize: '24px', fontWeight: 600 }}>
                 <MedicineBoxOutlined style={{ marginRight: 12 }} />
-                Hospital Management
+                Quản lý Bệnh viện
               </h2>
+              <p style={{ color: '#666', marginTop: 4, marginBottom: 0 }}>
+                Quản lý thông tin cơ bản của các bệnh viện trong hệ thống
+              </p>
             </Col>
             <Col>
               <Button
@@ -198,51 +184,35 @@ const HospitalManagement = () => {
                 icon={<PlusOutlined />}
                 onClick={handleAddHospital}
                 size="large"
+                style={{
+                  borderRadius: '6px',
+                  fontWeight: 500,
+                  height: '40px',
+                  paddingLeft: '20px',
+                  paddingRight: '20px'
+                }}
               >
-                Add Hospital
+                Thêm Bệnh viện
               </Button>
             </Col>
           </Row>
         </Col>
 
         <Col span={24}>
-          <Card>
-            <Row className="actions-row" gutter={16}>
-              <Col xs={24} sm={12} md={8} lg={6} className="search-container">
+          <Card style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+            {/* ✅ Simplified search row - removed type filter */}
+            <Row className="actions-row" gutter={16} style={{ marginBottom: 16 }}>
+              <Col xs={24} sm={18} md={20} lg={21} className="search-container">
                 <Input.Search
-                  placeholder="Search hospitals..."
+                  placeholder="Tìm kiếm bệnh viện theo tên, địa chỉ, email, số điện thoại..."
                   value={searchText}
                   onChange={handleSearchChange} 
                   onSearch={handleSearch}
                   enterButton={<SearchOutlined />}
                   allowClear
-                  loading={loading} 
+                  loading={loading}
+                  style={{ borderRadius: '6px' }}
                 />
-              </Col>
-              <Col xs={24} sm={6} md={4} lg={3}>
-                <Select
-                  value={statusFilter}
-                  onChange={handleStatusFilter}
-                  style={{ width: '100%' }}
-                  placeholder="Status"
-                >
-                  <Option value="all">All Status</Option>
-                  <Option value="active">Active</Option>
-                  <Option value="inactive">Inactive</Option>
-                </Select>
-              </Col>
-              <Col xs={24} sm={6} md={4} lg={3}>
-                <Select
-                  value={typeFilter}
-                  onChange={handleTypeFilter}
-                  style={{ width: '100%' }}
-                  placeholder="Type"
-                >
-                  <Option value="all">All Types</Option>
-                  <Option value="General">General</Option>
-                  <Option value="Specialized">Specialized</Option>
-                  <Option value="Community">Community</Option>
-                </Select>
               </Col>
             </Row>
 
@@ -253,11 +223,20 @@ const HospitalManagement = () => {
                 const statusMap = { '1': 'all', '2': 'active', '3': 'inactive' };
                 handleStatusFilter(statusMap[key]);
               }}
+              style={{ marginTop: 16 }}
             >
               <TabPane
                 tab={
-                  <span>
-                    All Hospitals <Badge count={counts.all} style={{ backgroundColor: '#1890ff' }} />
+                  <span style={{ fontSize: '14px', fontWeight: 500 }}>
+                    🏥 Tất cả Bệnh viện 
+                    <Badge 
+                      count={counts.all} 
+                      style={{ 
+                        backgroundColor: '#1890ff',
+                        marginLeft: 8,
+                        fontSize: '12px'
+                      }} 
+                    />
                   </span>
                 }
                 key="1"
@@ -267,14 +246,22 @@ const HospitalManagement = () => {
                   loading={loading}
                   pagination={statusFilter === 'all' ? pagination : { ...pagination, total: counts.all }}
                   onChange={handleTableChange}
-                  onReload={() => fetchHospitals(pagination.current, pagination.pageSize, searchText, statusFilter, typeFilter)}
+                  onReload={() => fetchHospitals(pagination.current, pagination.pageSize, searchText, statusFilter)}
                 />
               </TabPane>
 
               <TabPane
                 tab={
-                  <span>
-                    Active <Badge count={counts.active} style={{ backgroundColor: '#52c41a' }} />
+                  <span style={{ fontSize: '14px', fontWeight: 500 }}>
+                    🟢 Đang hoạt động 
+                    <Badge 
+                      count={counts.active} 
+                      style={{ 
+                        backgroundColor: '#52c41a',
+                        marginLeft: 8,
+                        fontSize: '12px'
+                      }} 
+                    />
                   </span>
                 }
                 key="2"
@@ -284,14 +271,22 @@ const HospitalManagement = () => {
                   loading={loading}
                   pagination={statusFilter === 'active' ? pagination : { ...pagination, total: counts.active }}
                   onChange={handleTableChange}
-                  onReload={() => fetchHospitals(pagination.current, pagination.pageSize, searchText, statusFilter, typeFilter)}
+                  onReload={() => fetchHospitals(pagination.current, pagination.pageSize, searchText, statusFilter)}
                 />
               </TabPane>
 
               <TabPane
                 tab={
-                  <span>
-                    Inactive <Badge count={counts.inactive} style={{ backgroundColor: '#ff4d4f' }} />
+                  <span style={{ fontSize: '14px', fontWeight: 500 }}>
+                    🔴 Ngưng hoạt động 
+                    <Badge 
+                      count={counts.inactive} 
+                      style={{ 
+                        backgroundColor: '#ff4d4f',
+                        marginLeft: 8,
+                        fontSize: '12px'
+                      }} 
+                    />
                   </span>
                 }
                 key="3"
@@ -301,7 +296,7 @@ const HospitalManagement = () => {
                   loading={loading}
                   pagination={statusFilter === 'inactive' ? pagination : { ...pagination, total: counts.inactive }}
                   onChange={handleTableChange}
-                  onReload={() => fetchHospitals(pagination.current, pagination.pageSize, searchText, statusFilter, typeFilter)}
+                  onReload={() => fetchHospitals(pagination.current, pagination.pageSize, searchText, statusFilter)}
                 />
               </TabPane>
             </Tabs>
@@ -320,7 +315,7 @@ const HospitalManagement = () => {
   );
 };
 
-
+// ✅ Hàm debounce để tối ưu hóa performance
 function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {
