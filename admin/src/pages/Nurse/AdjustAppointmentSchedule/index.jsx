@@ -111,10 +111,11 @@ const AdjustAppointmentSchedule = () => {
           title: `Có ${group.length} lịch hẹn`,
           start: group[0].start,
           end: group[0].end,
-          room: group[0].extendedProps?.room?.name,          // thêm tên phòng
+          room: "Phòng nhiều dịch vụ",          // thêm tên phòng
           serviceName: group.extendedProps?.serviceName,
           groupedEvents: group,
           isGroup: true,
+          backgroundColor: "#90caf9",
         });
       } else {
         grouped.push(group[0]);
@@ -129,6 +130,33 @@ const AdjustAppointmentSchedule = () => {
     };
     fetchSchedules();
   }, [filterDoctorId, filterSpecId, hospitalId, filterDateFrom, filterDateTo]);
+
+  const EVENT_COLORS = {
+    PENDING: {
+      backgroundColor: "#fffde7",
+      borderColor: "#ffd600",
+      textColor: "#5d4037",
+      iconColor: "#fbc02d"
+    },
+    CONFIRMED: {
+      backgroundColor: "#e8f5e9",
+      borderColor: "#43a047",
+      textColor: "#1b5e20",
+      iconColor: "#388e3c"
+    },
+    COMPLETED: {
+      backgroundColor: "#e3f2fd",
+      borderColor: "#1e88e5",
+      textColor: "#0d47a1",
+      iconColor: "#1976d2"
+    },
+    CANCELLED: {
+      backgroundColor: "#eeeeee",
+      borderColor: "#bdbdbd",
+      textColor: "#616161",
+      iconColor: "#9e9e9e"
+    }
+  };
 
 
   useEffect(() => {
@@ -166,15 +194,36 @@ const AdjustAppointmentSchedule = () => {
     </Row>
   );
 
-  const defaultEventColor = {
-    backgroundColor: "#cfd8dc",
-    borderColor: "#42a5f5",
-    textColor: "#0d47a1",
-  };
-  const renderEventContent = (eventInfo) => {
-    const { title, extendedProps } = eventInfo.event;
-    const status = extendedProps.status;
+const filteredAppointments = appointments.filter(a => 
+  a.extendedProps.status !== APPOINTMENT_STATUS.CANCELLED &&
+  a.extendedProps.status !== APPOINTMENT_STATUS.COMPLETED
+);
 
+const groupedAppointments = groupEvents(filteredAppointments);
+
+const finalEvents = groupedAppointments.filter(event => {
+  if (event.extendedProps?.isGroup) {
+    return true; 
+  }
+  return !groupedAppointments.some(groupEvent =>
+    groupEvent.extendedProps?.isGroup &&
+    groupEvent.start === event.start &&
+    groupEvent.end === event.end
+  );
+});
+  const renderEventContent = (eventInfo) => {
+    const { title, extendedProps, backgroundColor, borderColor, textColor } = eventInfo.event;
+    const status = extendedProps.status;
+    if (extendedProps.isGroup) {
+      return (
+        <div style={{ padding: "4px 8px", background: backgroundColor, border: `1px solid ${borderColor}`, borderRadius: 8 }}>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <CalendarOutlined style={{ color: textColor, marginRight: 6 }} />
+            <b style={{ color: textColor, flex: 1, fontWeight: "700", fontSize: 14 }}>{title}</b>
+          </div>
+        </div>
+      );
+    }
     let icon = null;
     let color = "#174378";
     let statusColor = "#0b2a44";
@@ -324,6 +373,8 @@ const AdjustAppointmentSchedule = () => {
           currentRange.end.toISOString()
         );
         console.log("list appoint is : " + JSON.stringify(list));
+
+
         const events = list.map((item) => {
           const workDateStr = item.doctorSchedule.workDate.split("T")[0];
           const startDT = dayjs(`${workDateStr}T${item.doctorSchedule.startTime}`).toISOString();
@@ -332,10 +383,14 @@ const AdjustAppointmentSchedule = () => {
           const classNames = [];
           if (item.status === APPOINTMENT_STATUS.CANCELLED) classNames.push("fc-event-cancelled");
           if (item.status === APPOINTMENT_STATUS.COMPLETED) classNames.push("fc-event-completed");
+          const statusKey = Object.keys(APPOINTMENT_STATUS).find(
+            k => APPOINTMENT_STATUS[k] === item.status
+          );
+          const eventColor = EVENT_COLORS[statusKey] || {};
           return {
             id: `appointment-${item.id}`,
             title: `Hẹn khám`,
-            backgroundColor: defaultEventColor.backgroundColor,
+            backgroundColor: eventColor.backgroundColor,
             start: startDT,
             end: endDT,
             classNames,
@@ -444,7 +499,7 @@ const AdjustAppointmentSchedule = () => {
 
     try {
       await changeAppointmentStatus(appointmentId, newStatus);
-      dispatch(setMessage({ type: "success", content: `Đã cập nhật trạng thái thành "${newStatus === APPOINTMENT_STATUS.CONFIRMED ? "Chấp nhận" : "Hoàn thành"}".` }));
+      dispatch(setMessage({ type: "success", content: `Đã cập nhật trạng thái thành "${newStatus === APPOINTMENT_STATUS.CONFIRMED ? "Xác nhận" : "Hoàn thành"}".` }));
       setFlag(prev => !prev);
       setModalOpen(false);
     } catch {
@@ -540,11 +595,7 @@ const AdjustAppointmentSchedule = () => {
             locale={viLocale}
             editable={false}
             eventDisplay="list-item"
-            events={groupEvents(appointments.filter(
-              (a) =>
-                a.extendedProps.status !== APPOINTMENT_STATUS.CANCELLED &&
-                a.extendedProps.status !== APPOINTMENT_STATUS.COMPLETED
-            ))}
+            events={finalEvents}
             eventContent={renderEventContent}
             eventClick={({ event }) => openModal(event)}
             height={600}
@@ -573,7 +624,7 @@ const AdjustAppointmentSchedule = () => {
                 <List.Item style={{ cursor: "pointer" }}
                   onClick={() => {
                     openModal(item)
-
+                    setShowGroupedModal(false)
                   }}>
                   <Text strong>{item.title}</Text> -{" "}
                   <Text>{typeof item.extendedProps?.room === 'string' ? item.extendedProps.room : item.extendedProps?.room?.name}</Text> -{" "}

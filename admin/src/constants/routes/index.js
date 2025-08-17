@@ -72,7 +72,7 @@ export const routes = [
       { path: "staff-shift-management", element: <StaffShiftManagement /> }, // đã vẽ
       { path: "room-management", element: <ManageRoom /> }, // đã vẽ
       { path: "specialist-management", element: <ManageSpecialist /> },  // đã vẽ
-      { path: "departments", element: <DepartmentManagement /> },
+      { path: "departments", element: <DepartmentManagement /> }, 
       { path: "medical-service-management", element: <MedicalServiceManagement /> },  // đã vẽ
       { path: "leave-request-management", element: <LeaveRequestManagement /> }, // đã vẽ
       { path: "hospital-statistic", element: <HospitalStatisticPage /> },
@@ -127,7 +127,7 @@ export const routes = [
       { path: "adjust-appointment-schedule", element: <AdjustBookingSchedule /> }, // đã vẽ
       { path: "payment-confirm/:id", element: <NursePaymentConfirmation /> },
       { path: "payment-list", element: <NurseUnpaidBookingList /> }, // đã vẽ
-      { path: "request-leave", element: <DoctorRequestLeave /> },
+      { path: "request-leave", element: <DoctorRequestLeave /> },  // đã vẽ
       { path: "patient-appointment-list", element: <PatientAppointmentList/>}
     ],
   },
