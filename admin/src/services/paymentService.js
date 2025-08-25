@@ -24,6 +24,16 @@ export const getPayments = async (hospitalId, userId) => {
   }
 };
 
+export const getTrackPayments = async (hospitalId) => {
+  try {
+    const result = await getAuth(`/payment/track-payments?hospitalId=${encodeURIComponent(hospitalId)}`);
+    console.log("result in track payments is ", result);
+    return result.result;
+  } catch (error) {
+    console.error('Lỗi khi lấy track payments:', error);
+    throw error;
+  }
+};
 export const cancelAppointment = async (appointmentId) => {
   if (!appointmentId) throw new Error('appointmentId là bắt buộc');
   try {

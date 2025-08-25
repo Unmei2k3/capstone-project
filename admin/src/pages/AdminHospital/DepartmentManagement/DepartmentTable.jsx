@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { Table, Button, Space, Tag, Tooltip, Avatar } from 'antd';
-import { EditOutlined, DeleteOutlined, EyeOutlined, BankOutlined, TeamOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, EyeOutlined, BankOutlined } from '@ant-design/icons';
 import EditDepartment from './EditDepartment';
 import DeleteDepartment from './DeleteDepartment';
 import ViewDepartment from './ViewDepartmentDetail';
-import DoctorManagement from './DoctorManage';
 
 const DepartmentTable = ({ departments, loading, pagination, onChange, onReload }) => {
     const [editingDepartment, setEditingDepartment] = useState(null);
@@ -13,8 +12,6 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
     const [departmentToDelete, setDepartmentToDelete] = useState(null);
     const [showViewModal, setShowViewModal] = useState(false);
     const [viewingDepartment, setViewingDepartment] = useState(null);
-    const [showDoctorModal, setShowDoctorModal] = useState(false);
-    const [managingDepartment, setManagingDepartment] = useState(null);
 
     const handleEdit = (record) => {
         console.log('DepartmentTable: Edit clicked for record:', record);
@@ -33,11 +30,6 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
         setShowViewModal(true);
     };
 
-    const handleManageDoctors = (record) => {
-        setManagingDepartment(record);
-        setShowDoctorModal(true);
-    };
-
     const handleEditSuccess = () => {
         setShowEditModal(false);
         setEditingDepartment(null);
@@ -48,10 +40,6 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
         setShowDeleteModal(false);
         setDepartmentToDelete(null);
         onReload();
-    };
-
-    const handleDoctorManagementSuccess = () => {
-        onReload(); // Refresh department data
     };
 
     // ✅ Simplified columns based on API response structure
@@ -157,7 +145,7 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
         {
             title: 'Thao tác',
             key: 'actions',
-            width: 160,
+            width: 120,
             fixed: 'right',
             render: (_, record) => (
                 <Space size="small">
@@ -168,15 +156,6 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
                             size="small"
                             onClick={() => handleView(record)}
                             style={{ color: '#1890ff' }}
-                        />
-                    </Tooltip>
-                    <Tooltip title="Quản lý bác sĩ">
-                        <Button
-                            type="text"
-                            icon={<TeamOutlined />}
-                            size="small"
-                            onClick={() => handleManageDoctors(record)}
-                            style={{ color: '#52c41a' }}
                         />
                     </Tooltip>
                     <Tooltip title="Chỉnh sửa">
@@ -223,7 +202,7 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
                 onChange={onChange}
                 bordered={false}
                 size="middle"
-                scroll={{ x: 950 }}
+                scroll={{ x: 830 }}
                 locale={{
                     emptyText: (
                         <div style={{ padding: '40px 20px', textAlign: 'center' }}>
@@ -292,19 +271,6 @@ const DepartmentTable = ({ departments, loading, pagination, onChange, onReload 
                         setViewingDepartment(null);
                     }}
                     key={`view-${viewingDepartment.id}`}
-                />
-            )}
-
-            {showDoctorModal && managingDepartment && (
-                <DoctorManagement
-                    visible={showDoctorModal}
-                    department={managingDepartment}
-                    onCancel={() => {
-                        setShowDoctorModal(false);
-                        setManagingDepartment(null);
-                    }}
-                    onSuccess={handleDoctorManagementSuccess}
-                    key={`doctor-${managingDepartment.id}`}
                 />
             )}
         </div>

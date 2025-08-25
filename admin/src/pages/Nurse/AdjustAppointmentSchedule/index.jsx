@@ -29,7 +29,7 @@ import {
   StopOutlined,
 } from "@ant-design/icons";
 import { getHospitalSpecializationSchedule } from "../../../services/scheduleService";
-import { getAllPatients } from "../../../services/userService";
+import { getPatientByHospitalId } from "../../../services/userService";
 import {
   changeAppointmentStatus,
   changeAppointmentTime,
@@ -52,7 +52,7 @@ const APPOINTMENT_STATUS = {
 
 const AdjustAppointmentSchedule = () => {
   const hospitalId = useSelector((state) => state.user.user?.hospitals?.[0]?.id);
-
+  const user = useSelector((state) => state.user.user || null);
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [specializations, setSpecializations] = useState([]);
@@ -194,23 +194,23 @@ const AdjustAppointmentSchedule = () => {
     </Row>
   );
 
-const filteredAppointments = appointments.filter(a => 
-  a.extendedProps.status !== APPOINTMENT_STATUS.CANCELLED &&
-  a.extendedProps.status !== APPOINTMENT_STATUS.COMPLETED
-);
-
-const groupedAppointments = groupEvents(filteredAppointments);
-
-const finalEvents = groupedAppointments.filter(event => {
-  if (event.extendedProps?.isGroup) {
-    return true; 
-  }
-  return !groupedAppointments.some(groupEvent =>
-    groupEvent.extendedProps?.isGroup &&
-    groupEvent.start === event.start &&
-    groupEvent.end === event.end
+  const filteredAppointments = appointments.filter(a =>
+    a.extendedProps.status !== APPOINTMENT_STATUS.CANCELLED &&
+    a.extendedProps.status !== APPOINTMENT_STATUS.COMPLETED
   );
-});
+
+  const groupedAppointments = groupEvents(filteredAppointments);
+
+  const finalEvents = groupedAppointments.filter(event => {
+    if (event.extendedProps?.isGroup) {
+      return true;
+    }
+    return !groupedAppointments.some(groupEvent =>
+      groupEvent.extendedProps?.isGroup &&
+      groupEvent.start === event.start &&
+      groupEvent.end === event.end
+    );
+  });
   const renderEventContent = (eventInfo) => {
     const { title, extendedProps, backgroundColor, borderColor, textColor } = eventInfo.event;
     const status = extendedProps.status;
@@ -327,7 +327,7 @@ const finalEvents = groupedAppointments.filter(event => {
   useEffect(() => {
     (async () => {
       try {
-        const data = await getAllPatients();
+        const data = await getPatientByHospitalId(user?.hospitals?.[0]?.id);;
         setPatients(data || []);
       } catch {
         console.error("Failed to fetch patients");

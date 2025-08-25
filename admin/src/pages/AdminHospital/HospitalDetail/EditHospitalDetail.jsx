@@ -322,37 +322,37 @@ const EditMyHospital = ({ visible, onCancel, onSuccess }) => {
     };
 
     // ✅ Simplified debug info (removed province/ward info)
-    const renderDebugInfo = () => {
-        if (process.env.NODE_ENV !== 'development') return null;
+    // const renderDebugInfo = () => {
+    //     if (process.env.NODE_ENV !== 'development') return null;
 
-        return (
-            <div style={{
-                background: "#f0f0f0",
-                padding: 12,
-                borderRadius: 6,
-                fontSize: '12px',
-                marginTop: 16
-            }}>
-                <strong>🔍 Debug Info:</strong><br />
-                Hospital ID: {hospitalId}<br />
-                Hospital loaded: {hospital ? "Yes" : "No"}<br />
-                {hospital && (
-                    <>
-                        Hospital Name: {hospital.name}<br />
-                        Hospital Phone: {hospital.phoneNumber || "None"}<br />
-                        Hospital Email: {hospital.email || "None"}<br />
-                        Hospital OpenTime (raw): {hospital.openTime || "None"}<br />
-                        Hospital CloseTime (raw): {hospital.closeTime || "None"}<br />
-                        Hospital OpenTime (parsed): {hospital.openTime ? dayjs(hospital.openTime).format('HH:mm') : "None"}<br />
-                        Hospital CloseTime (parsed): {hospital.closeTime ? dayjs(hospital.closeTime).format('HH:mm') : "None"}<br />
-                    </>
-                )}
-                User ID: {user?.id}<br />
-                Loading hospital: {loadingHospital ? "Yes" : "No"}<br />
-                Current form values: <pre>{JSON.stringify(form.getFieldsValue(), null, 2)}</pre>
-            </div>
-        );
-    };
+    //     return (
+    //         <div style={{
+    //             background: "#f0f0f0",
+    //             padding: 12,
+    //             borderRadius: 6,
+    //             fontSize: '12px',
+    //             marginTop: 16
+    //         }}>
+    //             <strong>🔍 Debug Info:</strong><br />
+    //             Hospital ID: {hospitalId}<br />
+    //             Hospital loaded: {hospital ? "Yes" : "No"}<br />
+    //             {hospital && (
+    //                 <>
+    //                     Hospital Name: {hospital.name}<br />
+    //                     Hospital Phone: {hospital.phoneNumber || "None"}<br />
+    //                     Hospital Email: {hospital.email || "None"}<br />
+    //                     Hospital OpenTime (raw): {hospital.openTime || "None"}<br />
+    //                     Hospital CloseTime (raw): {hospital.closeTime || "None"}<br />
+    //                     Hospital OpenTime (parsed): {hospital.openTime ? dayjs(hospital.openTime).format('HH:mm') : "None"}<br />
+    //                     Hospital CloseTime (parsed): {hospital.closeTime ? dayjs(hospital.closeTime).format('HH:mm') : "None"}<br />
+    //                 </>
+    //             )}
+    //             User ID: {user?.id}<br />
+    //             Loading hospital: {loadingHospital ? "Yes" : "No"}<br />
+    //             Current form values: <pre>{JSON.stringify(form.getFieldsValue(), null, 2)}</pre>
+    //         </div>
+    //     );
+    // };
 
     return (
         <>
@@ -626,7 +626,7 @@ const EditMyHospital = ({ visible, onCancel, onSuccess }) => {
                                 </div>
 
                                 {/* ✅ Simplified debug info */}
-                                {renderDebugInfo()}
+                                {/* {renderDebugInfo()} */}
                             </Form>
                         </>
                     )}

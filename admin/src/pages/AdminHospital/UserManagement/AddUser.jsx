@@ -19,7 +19,7 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
     const [loadingWards, setLoadingWards] = useState(false);
     const [loadingHospitals, setLoadingHospitals] = useState(false);
     const [loadingDepartments, setLoadingDepartments] = useState(false);
-    
+
     // ✅ Redux hooks
     const dispatch = useDispatch();
     const messageState = useSelector(state => state.message);
@@ -42,9 +42,9 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
     // ✅ Cập nhật danh sách vai trò theo roleType từ API
     const roles = [
         { id: 1, name: 'Người dùng', roleType: 1 },
-       
+
         { id: 4, name: 'Quản trị viên Bệnh viện', roleType: 4 },
-       
+
         { id: 6, name: 'Bệnh nhân', roleType: 6 }, // ✅ Patient role
         { id: 7, name: 'Y tá', roleType: 7 }
     ];
@@ -54,11 +54,11 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
         console.log('🎭 Role selected:', roleId);
         const role = roles.find(r => r.id === roleId);
         setSelectedRole(role);
-        
+
         // ✅ Check if selected role is Patient (roleType: 6)
         const isPatient = role?.roleType === 6;
         setIsPatientRole(isPatient);
-        
+
         if (isPatient) {
             console.log('👤 Patient role detected - clearing hospital/department data');
             // ✅ Clear hospital and department fields when Patient is selected
@@ -69,7 +69,7 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
             setSelectedHospitalId(null);
             setDepartments([]);
         }
-        
+
         console.log('🔍 Is Patient Role:', isPatient);
     };
 
@@ -122,7 +122,7 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
         if (visible) {
             console.log('👀 Modal opened, starting to fetch data...');
             dispatch(clearMessage());
-            
+
             fetchProvinces();
             fetchHospitals();
 
@@ -228,7 +228,7 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
             console.log('🏘️ Raw districts data from your API:', districtsData);
 
             const rawDistricts = Array.isArray(districtsData) ? districtsData : [];
-            
+
             const cleanedDistricts = rawDistricts
                 .filter((district, index) => {
                     if (!district) {
@@ -249,7 +249,7 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
                     district: district.district || district.name || `District ${index + 1}`,
                     uniqueKey: createUniqueKey(district, index, 'district')
                 }));
-            
+
             console.log('📋 Processed districts:', cleanedDistricts);
             setDistricts(cleanedDistricts);
 
@@ -286,7 +286,7 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
             console.log('🏠 Raw wards data from your API:', wardsData);
 
             const rawWards = Array.isArray(wardsData) ? wardsData : [];
-            
+
             const cleanedWards = rawWards
                 .filter((ward, index) => {
                     if (!ward) {
@@ -307,7 +307,7 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
                     ward: ward.ward || ward.name || `Ward ${index + 1}`,
                     uniqueKey: createUniqueKey(ward, index, 'ward')
                 }));
-            
+
             console.log('📋 Processed wards:', cleanedWards);
             setWards(cleanedWards);
 
@@ -421,14 +421,14 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
     const handleProvinceChange = (provinceId) => {
         console.log('🌏 Province selected:', provinceId);
         setSelectedProvince(provinceId);
-        
-        form.setFieldsValue({ 
+
+        form.setFieldsValue({
             district: undefined,
-            ward: undefined 
+            ward: undefined
         });
         setSelectedDistrict(null);
         setWards([]);
-        
+
         fetchDistricts(provinceId);
     };
 
@@ -436,9 +436,9 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
     const handleDistrictChange = (districtId) => {
         console.log('🏘️ District selected:', districtId);
         setSelectedDistrict(districtId);
-        
+
         form.setFieldsValue({ ward: undefined });
-        
+
         fetchWards(districtId);
     };
 
@@ -584,7 +584,7 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
                 if (errorData.errors && typeof errorData.errors === 'object') {
                     const errorFields = Object.keys(errorData.errors);
                     if (errorFields.length > 0) {
-                        const fieldErrors = errorFields.map(field => 
+                        const fieldErrors = errorFields.map(field =>
                             `• ${field}: ${errorData.errors[field]}`
                         ).join('\n');
                         errorMessage += `\n\nChi tiết lỗi:\n${fieldErrors}`;
@@ -618,7 +618,7 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
     // ✅ Enhanced cancel handler
     const handleCancel = () => {
         dispatch(clearMessage());
-        
+
         form.resetFields();
         setSelectedHospitalId(null);
         setDepartments([]);
@@ -628,7 +628,7 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
         setWards([]);
         setSelectedRole(null);
         setIsPatientRole(false);
-        
+
         if (onCancel && typeof onCancel === 'function') {
             onCancel();
         }
@@ -720,7 +720,7 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
                                         rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}
                                         hasFeedback
                                     >
-                                        <Select 
+                                        <Select
                                             placeholder="Chọn vai trò người dùng"
                                             onChange={handleRoleChange}
                                         >
@@ -862,6 +862,7 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
                                         label="Số điện thoại"
                                         rules={[
                                             {
+                                                required: true,
                                                 pattern: /^[0-9]{10,11}$/,
                                                 message: 'Số điện thoại phải có 10-11 chữ số'
                                             }
@@ -994,8 +995,8 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
                                     >
                                         <Select
                                             placeholder={
-                                                selectedProvince ? 
-                                                    (loadingDistricts ? "Đang tải..." : "Chọn quận/huyện") : 
+                                                selectedProvince ?
+                                                    (loadingDistricts ? "Đang tải..." : "Chọn quận/huyện") :
                                                     "Vui lòng chọn tỉnh/thành phố trước"
                                             }
                                             loading={loadingDistricts}
@@ -1038,8 +1039,8 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
                                     >
                                         <Select
                                             placeholder={
-                                                selectedDistrict ? 
-                                                    (loadingWards ? "Đang tải..." : "Chọn phường/xã") : 
+                                                selectedDistrict ?
+                                                    (loadingWards ? "Đang tải..." : "Chọn phường/xã") :
                                                     "Vui lòng chọn quận/huyện trước"
                                             }
                                             loading={loadingWards}
@@ -1117,9 +1118,9 @@ const AddUser = ({ visible, onCancel, onSuccess }) => {
                                 </Button>
                             </Col>
                             <Col>
-                                <Button 
-                                    type="primary" 
-                                    htmlType="submit" 
+                                <Button
+                                    type="primary"
+                                    htmlType="submit"
                                     loading={loading}
                                     icon={<UserAddOutlined />}
                                 >

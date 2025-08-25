@@ -127,3 +127,14 @@ export const getAllPatients = async () => {
     return null;
   }
 };
+
+
+export const getPatientByHospitalId = async (id) => {
+  try {
+    const response = await getAuth(`/user/patient/by-hospital/${id}`);
+    return response.result;
+  } catch (error) {
+    console.error(`Error get user ${id}:`, error);
+    return null;
+  }
+};

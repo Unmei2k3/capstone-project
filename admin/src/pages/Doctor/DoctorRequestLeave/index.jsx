@@ -234,8 +234,8 @@ const DoctorRequestLeave = () => {
                     <Col xs={24}>
                         <Row justify="space-between" align="middle">
                             <Col>
-                                <Title level={2}>
-                                    <UserOutlined style={{ marginRight: 12 }} />
+                                <Title level={3}>
+                                    <UserOutlined style={{ marginRight: 8, color: "#1890ff" }} />
                                     Đơn Xin Nghỉ Phép của {roleName}
                                 </Title>
                             </Col>

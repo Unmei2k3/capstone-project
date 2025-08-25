@@ -1119,7 +1119,7 @@ const AddStaff = ({ visible, onCancel, onSuccess, staffType = 'doctor', departme
                         </Row>
 
                         {/* Debug info for provinces (remove in production) */}
-                        {process.env.NODE_ENV === 'development' && (
+                        {/* {process.env.NODE_ENV === 'development' && (
                             <div style={{
                                 background: "#f0f0f0",
                                 padding: 12,
@@ -1133,7 +1133,7 @@ const AddStaff = ({ visible, onCancel, onSuccess, staffType = 'doctor', departme
                                 Quận/huyện có sẵn: {wards.length}<br />
                                 Đang tải tỉnh thành: {loadingProvinces ? "Có" : "Không"}
                             </div>
-                        )}
+                        )} */}
                     </div>
                 );
 

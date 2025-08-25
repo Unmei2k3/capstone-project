@@ -29,7 +29,8 @@ import {
     BankOutlined,
     TeamOutlined,
     EnvironmentOutlined,
-    LoadingOutlined
+    LoadingOutlined,
+    SettingOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getDoctorDetail } from '../../../services/doctorService';
@@ -37,22 +38,38 @@ import { getUserById } from '../../../services/userService';
 
 const { Title, Text } = Typography;
 
-const ViewStaff = ({ visible,
+const ViewStaff = ({ 
+    visible,
     onCancel,
     staff,
     apiSource,
     detailedData,
-    staffType }) => {
+    staffType 
+}) => {
     const [loading, setLoading] = useState(false);
     const [staffDetailData, setStaffDetailData] = useState(null);
     const [error, setError] = useState(null);
-    const currentStaffType = staffType || staff?.type || 'unknown';
+    
+    // ✅ Enhanced staff type detection
+    const getStaffType = () => {
+        if (staffType) return staffType;
+        if (staff?.type) return staff.type;
+        if (staff?.role?.name) {
+            const roleName = staff.role.name.toLowerCase();
+            if (roleName.includes('doctor')) return 'doctor';
+            if (roleName.includes('nurse')) return 'nurse';
+            if (roleName.includes('hospital staff')) return 'hospital-staff';
+        }
+        return 'hospital-staff'; // Default fallback
+    };
+
+    const currentStaffType = getStaffType();
+
     // Reset state when modal opens/closes
     useEffect(() => {
         if (visible && staff?.id) {
             fetchStaffDetail(staff.id);
         } else if (!visible) {
-            // Reset state when modal closes
             setStaffDetailData(null);
             setError(null);
             setLoading(false);
@@ -64,27 +81,26 @@ const ViewStaff = ({ visible,
         setError(null);
 
         try {
-            console.log('🔍 Fetching staff detail for ID:', staffId, 'Type:', currentStaffType);
+            console.log('🔍 Đang tải chi tiết nhân viên ID:', staffId, 'Loại:', currentStaffType);
 
             let detailData;
 
-            // Use different API based on staff type
+            // ✅ Enhanced API handling for different staff types
             if (currentStaffType === 'doctor') {
                 detailData = await getDoctorDetail(staffId);
-                console.log('📥 Received doctor detail:', detailData);
+                console.log('📥 Nhận dữ liệu bác sĩ:', detailData);
             } else if (currentStaffType === 'nurse') {
                 const response = await getUserById(staffId);
-                console.log('📥 Received nurse detail response:', response);
+                console.log('📥 Nhận dữ liệu y tá:', response);
 
-                // For nurses, we need to structure the data similar to doctor response
                 if (response) {
                     detailData = {
                         id: response.id,
                         type: 'nurse',
-                        status: response.status || 'active',
+                        status: response.active ? 'active' : 'inactive',
                         user: response,
-                        specializations: [], // Nurses typically don't have specializations
-                        hospitalAffiliations: response.hospitalAffiliations || [],
+                        specializations: [],
+                        hospitalAffiliations: response.hospitals || [],
                         experience: response.experience || null,
                         practicingFrom: response.practicingFrom || null,
                         description: response.description || null,
@@ -93,19 +109,88 @@ const ViewStaff = ({ visible,
                         schedule: response.schedule || null
                     };
                 }
+            } else if (currentStaffType === 'hospital-staff') {
+                // ✅ Handle hospital staff using getUserById
+                const response = await getUserById(staffId);
+                console.log('📥 Nhận dữ liệu nhân viên bệnh viện:', response);
+
+                if (response) {
+                    detailData = {
+                        id: response.id,
+                        type: 'hospital-staff',
+                        status: response.active ? 'active' : 'inactive',
+                        user: response,
+                        specializations: [], // Hospital staff typically don't have specializations
+                        hospitalAffiliations: response.hospitals || [],
+                        experience: response.experience || null,
+                        practicingFrom: response.practicingFrom || null,
+                        description: response.description || response.job || null,
+                        rating: response.rating || null,
+                        totalPatients: 0, // Hospital staff don't treat patients directly
+                        schedule: response.schedule || null,
+                        role: response.role
+                    };
+                }
             } else {
                 throw new Error(`Không hỗ trợ loại nhân viên: ${currentStaffType}`);
             }
 
             setStaffDetailData(detailData);
         } catch (error) {
-            console.error('❌ Error fetching staff detail:', error);
-            const staffTypeText = currentStaffType === 'doctor' ? 'bác sĩ' : 'y tá';
+            console.error('❌ Lỗi khi tải chi tiết nhân viên:', error);
+            
+            let staffTypeText = 'nhân viên';
+            switch (currentStaffType) {
+                case 'doctor':
+                    staffTypeText = 'bác sĩ';
+                    break;
+                case 'nurse':
+                    staffTypeText = 'y tá';
+                    break;
+                case 'hospital-staff':
+                    staffTypeText = 'nhân viên bệnh viện';
+                    break;
+            }
+            
             setError(`Không thể tải thông tin chi tiết ${staffTypeText}. Vui lòng thử lại.`);
         } finally {
             setLoading(false);
         }
     };
+
+    // ✅ Enhanced staff type configuration
+    const getStaffTypeConfig = (type) => {
+        const typeConfigs = {
+            doctor: {
+                title: 'Thông tin Bác sĩ',
+                icon: <MedicineBoxOutlined />,
+                color: '#1890ff',
+                text: 'Bác sĩ',
+                loadingText: 'Đang tải thông tin bác sĩ...',
+                codeLabel: 'Mã bác sĩ'
+            },
+            nurse: {
+                title: 'Thông tin Y tá',
+                icon: <HeartOutlined />,
+                color: '#52c41a',
+                text: 'Y tá',
+                loadingText: 'Đang tải thông tin y tá...',
+                codeLabel: 'Mã y tá'
+            },
+            'hospital-staff': {
+                title: 'Thông tin Nhân viên Bệnh viện',
+                icon: <SettingOutlined />,
+                color: '#fa8c16',
+                text: 'Nhân viên Bệnh viện',
+                loadingText: 'Đang tải thông tin nhân viên...',
+                codeLabel: 'Mã nhân viên'
+            }
+        };
+
+        return typeConfigs[type] || typeConfigs['hospital-staff'];
+    };
+
+    const config = getStaffTypeConfig(currentStaffType);
 
     // Early return for no staff
     if (!staff || !visible) {
@@ -118,23 +203,17 @@ const ViewStaff = ({ visible,
             <Modal
                 title={
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                        {currentStaffType === 'doctor' ? (
-                            <>
-                                <MedicineBoxOutlined style={{ color: '#1890ff', marginRight: 8 }} />
-                                <span style={{ color: '#1890ff' }}>Thông tin bác sĩ</span>
-                            </>
-                        ) : (
-                            <>
-                                <HeartOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-                                <span style={{ color: '#52c41a' }}>Thông tin y tá</span>
-                            </>
-                        )}
+                        <span style={{ color: config.color, marginRight: 8 }}>
+                            {config.icon}
+                        </span>
+                        <span style={{ color: config.color }}>{config.title}</span>
                     </div>
                 }
                 open={visible}
                 onCancel={onCancel}
                 footer={null}
                 width={900}
+                destroyOnClose
             >
                 {apiSource && (
                     <div style={{
@@ -145,9 +224,9 @@ const ViewStaff = ({ visible,
                         fontSize: '12px',
                         color: '#666'
                     }}>
-                        <strong>Data Source:</strong> {apiSource} |
-                        <strong> Staff Type:</strong> {currentStaffType} |
-                        <strong> Has Detailed Data:</strong> {detailedData ? 'Yes' : 'No'}
+                        <strong>Nguồn dữ liệu:</strong> {apiSource} |
+                        <strong> Loại nhân viên:</strong> {currentStaffType} |
+                        <strong> Có dữ liệu chi tiết:</strong> {detailedData ? 'Có' : 'Không'}
                     </div>
                 )}
                 <div style={{
@@ -161,7 +240,7 @@ const ViewStaff = ({ visible,
                         indicator={<LoadingOutlined style={{ fontSize: 48 }} />}
                     />
                     <div style={{ marginLeft: 16, fontSize: 16 }}>
-                        {currentStaffType === 'doctor' ? 'Đang tải thông tin bác sĩ...' : 'Đang tải thông tin y tá...'}
+                        {config.loadingText}
                     </div>
                 </div>
             </Modal>
@@ -175,7 +254,7 @@ const ViewStaff = ({ visible,
                 title={
                     <Space>
                         <UserOutlined />
-                        <span>Thông tin {currentStaffType === 'doctor' ? 'bác sĩ' : 'y tá'}</span>
+                        <span>{config.title}</span>
                     </Space>
                 }
                 open={visible}
@@ -217,7 +296,7 @@ const ViewStaff = ({ visible,
                 title={
                     <Space>
                         <UserOutlined />
-                        <span>Thông tin {currentStaffType === 'doctor' ? 'bác sĩ' : 'y tá'}</span>
+                        <span>{config.title}</span>
                     </Space>
                 }
                 open={visible}
@@ -241,7 +320,7 @@ const ViewStaff = ({ visible,
     const hospitalAffiliations = staffData.hospitalAffiliations || [];
     const specializations = staffData.specializations || [];
 
-    console.log('📋 Using API data:');
+    console.log('📋 Sử dụng dữ liệu API:');
     console.log('- staffData:', staffData);
     console.log('- user:', user);
     console.log('- hospitalAffiliations:', hospitalAffiliations);
@@ -272,13 +351,8 @@ const ViewStaff = ({ visible,
         return '❓ Chưa xác định';
     };
 
-    const getStaffTypeText = (type) => {
-        const typeConfig = {
-            doctor: { text: 'Bác sĩ', icon: <MedicineBoxOutlined />, color: '#1890ff' },
-            nurse: { text: 'Y tá', icon: <HeartOutlined />, color: '#52c41a' }
-        };
-
-        const config = typeConfig[type] || typeConfig.doctor;
+    const getStaffTypeDisplay = (type) => {
+        const config = getStaffTypeConfig(type);
         return (
             <Space>
                 <span style={{ color: config.color }}>{config.icon}</span>
@@ -298,7 +372,7 @@ const ViewStaff = ({ visible,
 
             return `${years} năm ${months} tháng`;
         } catch (error) {
-            console.error("Error calculating practicing duration:", error);
+            console.error("Lỗi tính thời gian hành nghề:", error);
             return 'Không thể tính toán';
         }
     };
@@ -310,7 +384,7 @@ const ViewStaff = ({ visible,
                     <Divider />
                     <Title level={5} style={{ marginBottom: 16 }}>
                         <BankOutlined style={{ marginRight: 8 }} />
-                        Liên kết bệnh viện & Khoa làm việc
+                        Liên kết Bệnh viện
                     </Title>
                     <div style={{
                         textAlign: 'center',
@@ -330,80 +404,41 @@ const ViewStaff = ({ visible,
                 <Divider />
                 <Title level={5} style={{ marginBottom: 16 }}>
                     <BankOutlined style={{ marginRight: 8 }} />
-                    Liên kết bệnh viện & Khoa làm việc ({hospitalAffiliations.length})
+                    Liên kết Bệnh viện ({hospitalAffiliations.length})
                 </Title>
 
                 <List
                     dataSource={hospitalAffiliations}
-                    renderItem={(affiliation, index) => (
-                        <List.Item key={affiliation.id || index}>
+                    renderItem={(hospital, index) => (
+                        <List.Item key={hospital.id || index}>
                             <Card
                                 size="small"
                                 style={{ width: '100%', marginBottom: 8 }}
                                 title={
                                     <Space>
                                         <BankOutlined style={{ color: '#1890ff' }} />
-                                        <Text strong>{affiliation.hospital?.name || 'Tên bệnh viện không xác định'}</Text>
+                                        <Text strong>{hospital.name || 'Tên bệnh viện không xác định'}</Text>
                                     </Space>
                                 }
                                 extra={
-                                    <Tag color="blue" icon={<TeamOutlined />}>
-                                        {affiliation.departmentName || 'Khoa không xác định'}
+                                    <Tag color="blue">
+                                        Mã: {hospital.code || 'N/A'}
                                     </Tag>
                                 }
                             >
-                                <Row gutter={16}>
-                                    <Col span={12}>
-                                        <Space direction="vertical" size={4}>
-                                            <div>
-                                                <Text strong>Vị trí: </Text>
-                                                <Tag color="green">{affiliation.position || 'Chưa xác định'}</Tag>
-                                            </div>
-                                            <div>
-                                                <Text strong>Khoa: </Text>
-                                                <Text>{affiliation.departmentName || 'Chưa xác định'}</Text>
-                                            </div>
-                                            <div>
-                                                <Text strong>Địa chỉ: </Text>
-                                                <Text type="secondary">
-                                                    <EnvironmentOutlined style={{ marginRight: 4 }} />
-                                                    {affiliation.hospital?.address || 'Chưa cập nhật địa chỉ'}
-                                                </Text>
-                                            </div>
-                                        </Space>
-                                    </Col>
-                                    <Col span={12}>
-                                        <Space direction="vertical" size={4}>
-                                            <div>
-                                                <Text strong>Bắt đầu hợp đồng: </Text>
-                                                <Text>
-                                                    {affiliation.contractStart
-                                                        ? dayjs(affiliation.contractStart).format('DD/MM/YYYY')
-                                                        : 'Chưa xác định'
-                                                    }
-                                                </Text>
-                                            </div>
-                                            <div>
-                                                <Text strong>Kết thúc hợp đồng: </Text>
-                                                <Text>
-                                                    {affiliation.contractEnd
-                                                        ? dayjs(affiliation.contractEnd).format('DD/MM/YYYY')
-                                                        : 'Chưa xác định'
-                                                    }
-                                                </Text>
-                                            </div>
-                                            <div>
-                                                <Text strong>Thời hạn còn lại: </Text>
-                                                <Text type="secondary">
-                                                    {affiliation.contractEnd
-                                                        ? `${Math.max(0, dayjs(affiliation.contractEnd).diff(dayjs(), 'month'))} tháng`
-                                                        : 'Chưa xác định'
-                                                    }
-                                                </Text>
-                                            </div>
-                                        </Space>
-                                    </Col>
-                                </Row>
+                                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                                    <div>
+                                        <Text strong>ID Bệnh viện: </Text>
+                                        <Text code>{hospital.id}</Text>
+                                    </div>
+                                    <div>
+                                        <Text strong>Địa chỉ: </Text>
+                                        <Text type="secondary">
+                                            <EnvironmentOutlined style={{ marginRight: 4 }} />
+                                            {hospital.address || 'Chưa cập nhật địa chỉ'}
+                                        </Text>
+                                    </div>
+                                </Space>
                             </Card>
                         </List.Item>
                     )}
@@ -413,6 +448,11 @@ const ViewStaff = ({ visible,
     };
 
     const renderSpecializations = () => {
+        // ✅ Only show specializations for doctors
+        if (currentStaffType !== 'doctor') {
+            return null;
+        }
+
         if (!specializations || specializations.length === 0) {
             return (
                 <>
@@ -460,7 +500,7 @@ const ViewStaff = ({ visible,
                                                     objectFit: 'cover'
                                                 }}
                                                 onError={(e) => {
-                                                    console.log("Image failed to load:", spec.image);
+                                                    console.log("Ảnh tải thất bại:", spec.image);
                                                     e.target.style.display = 'none';
                                                 }}
                                             />
@@ -499,12 +539,36 @@ const ViewStaff = ({ visible,
         );
     };
 
+    // ✅ Enhanced role display
+    const renderRoleInfo = () => {
+        if (!staffData.role) return null;
+
+        return (
+            <div style={{
+                marginTop: 12,
+                padding: '8px 12px',
+                backgroundColor: '#f0f7ff',
+                borderRadius: '4px',
+                border: '1px solid #d6e4ff'
+            }}>
+                <Text style={{ fontSize: '13px', color: '#1890ff' }}>
+                    👤 <strong>Vai trò:</strong> {staffData.role.name}
+                </Text>
+                {staffData.role.roleType && (
+                    <Text style={{ fontSize: '12px', color: '#666', display: 'block', marginTop: '4px' }}>
+                        Loại vai trò: {staffData.role.roleType}
+                    </Text>
+                )}
+            </div>
+        );
+    };
+
     return (
         <Modal
             title={
                 <Space>
-                    <UserOutlined />
-                    <span>Thông tin {currentStaffType === 'doctor' ? 'bác sĩ' : 'y tá'} - {user.fullname || 'Không rõ'}</span>
+                    <span style={{ color: config.color }}>{config.icon}</span>
+                    <span>{config.title} - {user.fullname || 'Không rõ'}</span>
                 </Space>
             }
             open={visible}
@@ -528,8 +592,10 @@ const ViewStaff = ({ visible,
                             <Title level={4} style={{ marginBottom: 8 }}>
                                 {user.fullname || 'Tên không xác định'}
                             </Title>
-                            {getStaffTypeText(staffData.type || currentStaffType)}
+                            {getStaffTypeDisplay(staffData.type || currentStaffType)}
                         </div>
+                        {/* ✅ Role info */}
+                        {renderRoleInfo()}
                     </Col>
                     <Col span={18}>
                         <Row gutter={16}>
@@ -540,7 +606,7 @@ const ViewStaff = ({ visible,
                                         {getStatusTag(staffData.status || 'active')}
                                     </div>
                                     <div>
-                                        <Text strong>Mã {currentStaffType === 'doctor' ? 'bác sĩ' : 'y tá'}: </Text>
+                                        <Text strong>{config.codeLabel}: </Text>
                                         <Text code>{staffData?.id || 'N/A'}</Text>
                                     </div>
                                     <div>
@@ -561,10 +627,12 @@ const ViewStaff = ({ visible,
                                         <Text strong>Số bệnh viện: </Text>
                                         <Tag color="blue">{hospitalAffiliations?.length || 0}</Tag>
                                     </div>
-                                    <div>
-                                        <Text strong>Tổng bệnh nhân: </Text>
-                                        <Tag color="green">{staffData.totalPatients || 0}</Tag>
-                                    </div>
+                                    {currentStaffType === 'doctor' && (
+                                        <div>
+                                            <Text strong>Tổng bệnh nhân: </Text>
+                                            <Tag color="green">{staffData.totalPatients || 0}</Tag>
+                                        </div>
+                                    )}
                                 </Space>
                             </Col>
                         </Row>
@@ -576,11 +644,14 @@ const ViewStaff = ({ visible,
                 {/* Personal Information */}
                 <Title level={5} style={{ marginBottom: 16 }}>
                     <UserOutlined style={{ marginRight: 8 }} />
-                    Thông tin cá nhân
+                    Thông tin Cá nhân
                 </Title>
                 <Descriptions bordered column={2} size="small">
                     <Descriptions.Item label="Họ và tên" span={2}>
                         {user.fullname || 'Chưa cập nhật'}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Tên đăng nhập">
+                        <Text code>{user.userName || 'Chưa cập nhật'}</Text>
                     </Descriptions.Item>
                     <Descriptions.Item label="Email">
                         <Space>
@@ -606,6 +677,9 @@ const ViewStaff = ({ visible,
                     <Descriptions.Item label="CCCD" span={2}>
                         <Text code>{user.cccd || 'Chưa cập nhật'}</Text>
                     </Descriptions.Item>
+                    <Descriptions.Item label="Công việc" span={2}>
+                        <Text>{user.job || 'Chưa cập nhật'}</Text>
+                    </Descriptions.Item>
                     <Descriptions.Item label="Địa chỉ" span={2}>
                         <Text>
                             {[user.streetAddress, user.ward, user.province]
@@ -615,52 +689,94 @@ const ViewStaff = ({ visible,
                     </Descriptions.Item>
                 </Descriptions>
 
-                <Divider />
+                {/* ✅ Professional Information - Only for doctors and nurses */}
+                {(currentStaffType === 'doctor' || currentStaffType === 'nurse') && (
+                    <>
+                        <Divider />
+                        <Title level={5} style={{ marginBottom: 16 }}>
+                            <MedicineBoxOutlined style={{ marginRight: 8 }} />
+                            Thông tin Nghề nghiệp
+                        </Title>
+                        <Descriptions bordered column={2} size="small">
+                            <Descriptions.Item label="Mô tả" span={2}>
+                                {staffData?.description || 'Chưa cập nhật'}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Bắt đầu hành nghề">
+                                <Space>
+                                    <CalendarOutlined />
+                                    {staffData?.practicingFrom
+                                        ? dayjs(staffData.practicingFrom).format('DD/MM/YYYY')
+                                        : 'Chưa cập nhật'
+                                    }
+                                </Space>
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Thời gian hành nghề">
+                                <Text strong>{staffData.experience || getPracticingDuration(staffData?.practicingFrom)}</Text>
+                            </Descriptions.Item>
+                            {currentStaffType === 'doctor' && (
+                                <Descriptions.Item label="Phí tư vấn">
+                                    <Text strong style={{ color: '#52c41a' }}>
+                                        {staffData.consultationFee ? `${Number(staffData.consultationFee).toLocaleString()} VNĐ` : 'Chưa cập nhật'}
+                                    </Text>
+                                </Descriptions.Item>
+                            )}
+                            <Descriptions.Item label="Đánh giá">
+                                <Space>
+                                    <Text strong>{staffData.rating || 'N/A'}</Text>
+                                    <Text type="secondary">/ 5.0</Text>
+                                </Space>
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Lịch làm việc" span={2}>
+                                <Text>{staffData.schedule || 'Chưa cập nhật'}</Text>
+                            </Descriptions.Item>
+                        </Descriptions>
+                    </>
+                )}
 
-                {/* Professional Information */}
-                <Title level={5} style={{ marginBottom: 16 }}>
-                    <MedicineBoxOutlined style={{ marginRight: 8 }} />
-                    Thông tin nghề nghiệp
-                </Title>
-                <Descriptions bordered column={2} size="small">
-                    <Descriptions.Item label="Mô tả" span={2}>
-                        {staffData?.description || 'Chưa cập nhật'}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Bắt đầu hành nghề">
-                        <Space>
-                            <CalendarOutlined />
-                            {staffData?.practicingFrom
-                                ? dayjs(staffData.practicingFrom).format('DD/MM/YYYY')
-                                : 'Chưa cập nhật'
-                            }
-                        </Space>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Thời gian hành nghề">
-                        <Text strong>{staffData.experience || getPracticingDuration(staffData?.practicingFrom)}</Text>
-                    </Descriptions.Item>
-                    {currentStaffType === 'doctor' && (
-                        <Descriptions.Item label="Phí tư vấn">
-                            <Text strong style={{ color: '#52c41a' }}>
-                                {staffData.consultationFee ? `${Number(staffData.consultationFee).toLocaleString()} VNĐ` : 'Chưa cập nhật'}
-                            </Text>
-                        </Descriptions.Item>
-                    )}
-                    <Descriptions.Item label="Đánh giá">
-                        <Space>
-                            <Text strong>{staffData.rating || 'N/A'}</Text>
-                            <Text type="secondary">/ 5.0</Text>
-                        </Space>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Lịch làm việc" span={2}>
-                        <Text>{staffData.schedule || 'Chưa cập nhật'}</Text>
-                    </Descriptions.Item>
-                </Descriptions>
-
-                {/* Hospital Affiliations & Departments */}
+                {/* Hospital Affiliations */}
                 {renderHospitalAffiliations()}
 
                 {/* Specializations - Only show for doctors */}
-                {currentStaffType === 'doctor' && renderSpecializations()}
+                {renderSpecializations()}
+
+                {/* Account Information */}
+                <Divider />
+                <Title level={5} style={{ marginBottom: 16 }}>
+                    <SettingOutlined style={{ marginRight: 8 }} />
+                    Thông tin Tài khoản
+                </Title>
+                <Descriptions bordered column={2} size="small">
+                    <Descriptions.Item label="Trạng thái tài khoản">
+                        {user.active ? (
+                            <Tag color="green" icon={<CheckCircleOutlined />}>Đã kích hoạt</Tag>
+                        ) : (
+                            <Tag color="red" icon={<CloseCircleOutlined />}>Chưa kích hoạt</Tag>
+                        )}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Xác thực email">
+                        {user.isVerifiedEmail ? (
+                            <Tag color="green" icon={<CheckCircleOutlined />}>Đã xác thực</Tag>
+                        ) : (
+                            <Tag color="orange" icon={<ClockCircleOutlined />}>Chưa xác thực</Tag>
+                        )}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Xác thực số điện thoại">
+                        {user.isVerifiedPhone ? (
+                            <Tag color="green" icon={<CheckCircleOutlined />}>Đã xác thực</Tag>
+                        ) : (
+                            <Tag color="orange" icon={<ClockCircleOutlined />}>Chưa xác thực</Tag>
+                        )}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Lần đăng nhập cuối">
+                        <Space>
+                            <ClockCircleOutlined />
+                            {user.lastLogin ? dayjs(user.lastLogin).format('DD/MM/YYYY HH:mm') : 'Chưa từng đăng nhập'}
+                        </Space>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Nhà cung cấp đăng ký" span={2}>
+                        <Text>{user.registerProvider || 'Hệ thống nội bộ'}</Text>
+                    </Descriptions.Item>
+                </Descriptions>
 
                 {/* Bio Section */}
                 {staffData?.description && (
@@ -668,7 +784,7 @@ const ViewStaff = ({ visible,
                         <Divider />
                         <Title level={5} style={{ marginBottom: 16 }}>
                             <BookOutlined style={{ marginRight: 8 }} />
-                            Mô tả chi tiết
+                            Mô tả Chi tiết
                         </Title>
                         <div style={{
                             background: '#f6f8fa',

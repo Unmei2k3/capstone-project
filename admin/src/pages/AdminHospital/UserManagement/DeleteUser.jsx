@@ -10,8 +10,8 @@ const DeleteUser = ({ visible, record, onCancel, onSuccess }) => {
 
     const success = () => {
         notification.success({
-            message: 'Success',
-            description: `User "${record?.firstName} ${record?.lastName}" deleted successfully!`,
+            message: 'Thành công',
+            description: `Đã xóa người dùng "${record?.firstName} ${record?.lastName}" thành công!`,
             placement: 'topRight',
             duration: 3
         });
@@ -19,73 +19,83 @@ const DeleteUser = ({ visible, record, onCancel, onSuccess }) => {
 
     const error = (errorMessage) => {
         notification.error({
-            message: 'Error',
-            description: errorMessage || 'Failed to delete user. Please try again.',
+            message: 'Lỗi',
+            description: errorMessage || 'Không thể xóa người dùng. Vui lòng thử lại.',
             placement: 'topRight',
             duration: 5
         });
     };
 
-    // ✅ Enhanced handleDelete với auto reload và close modal
+    // ✅ Helper function để hiển thị role
+    const getRoleDisplay = (role) => {
+        if (!role) return 'Không có vai trò';
+
+        // ✅ Nếu role là object với structure {id, name, roleType}
+        if (typeof role === 'object' && role.name) {
+            return role.name;
+        }
+
+        // ✅ Nếu role là string
+        if (typeof role === 'string') {
+            return role;
+        }
+
+        return 'Không xác định';
+    };
+
     const handleDelete = async () => {
         if (!record?.id) {
-            error('Invalid user information');
+            error('Thông tin người dùng không hợp lệ');
             return;
         }
 
         setSpinning(true);
-        
+
         try {
-            console.log('🗑️ Deleting user:', record.id, record.firstName, record.lastName);
-            
+            console.log('🗑️ Đang xóa người dùng:', record.id, record.firstName, record.lastName);
+
             const response = await deleteUser(record.id);
-            console.log('✅ Delete response:', response);
+            console.log('✅ Phản hồi xóa:', response);
 
             // ✅ Validate response
             if (response || response?.success !== false) {
-                // ✅ Show success notification
                 success();
-                
-                // ✅ Call onSuccess callback để reload data và đóng modal
+
                 if (onSuccess && typeof onSuccess === 'function') {
-                    // ✅ Delay nhỏ để user thấy success notification trước khi modal đóng
                     setTimeout(() => {
                         onSuccess(response, { shouldReload: true });
                     }, 500);
                 } else {
-                    // ✅ Fallback: đóng modal nếu không có callback
                     setTimeout(() => {
                         onCancel();
                     }, 1000);
                 }
             } else {
-                throw new Error('Delete operation failed');
+                throw new Error('Thao tác xóa thất bại');
             }
         } catch (err) {
-            console.error('❌ Error deleting user:', err);
-            
-            // ✅ Enhanced error handling
-            let errorMessage = 'Failed to delete user. Please try again.';
-            
+            console.error('❌ Lỗi khi xóa người dùng:', err);
+
+            let errorMessage = 'Không thể xóa người dùng. Vui lòng thử lại.';
+
             if (err.response?.status === 404) {
-                errorMessage = 'User not found or already deleted.';
+                errorMessage = 'Không tìm thấy người dùng hoặc đã được xóa.';
             } else if (err.response?.status === 403) {
-                errorMessage = 'You do not have permission to delete this user.';
+                errorMessage = 'Bạn không có quyền xóa người dùng này.';
             } else if (err.response?.status === 409) {
-                errorMessage = 'Cannot delete user due to existing data constraints (appointments, medical records, etc.).';
+                errorMessage = 'Không thể xóa người dùng do có ràng buộc dữ liệu (lịch khám, hồ sơ y tế, v.v.).';
             } else if (err.response?.data?.message) {
                 errorMessage = err.response.data.message;
             } else if (err.message) {
                 errorMessage = err.message;
             }
-            
+
             error(errorMessage);
         } finally {
             setSpinning(false);
         }
     };
 
-    // ✅ Enhanced cancel handler
     const handleCancel = () => {
         if (!spinning) {
             onCancel();
@@ -97,10 +107,10 @@ const DeleteUser = ({ visible, record, onCancel, onSuccess }) => {
             title={
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                     <UserDeleteOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
-                    Delete User
+                    Xóa Người dùng
                 </div>
             }
-            visible={visible}
+            open={visible} // ✅ Đổi từ "visible" thành "open" (Antd v5)
             onCancel={handleCancel}
             footer={null}
             width={500}
@@ -110,77 +120,102 @@ const DeleteUser = ({ visible, record, onCancel, onSuccess }) => {
             maskClosable={!spinning}
             closable={!spinning}
         >
-            <Spin spinning={spinning} tip="Deleting user...">
+            <Spin spinning={spinning} tip="Đang xóa người dùng...">
                 <div style={{ padding: '20px 0' }}>
-                    <div className="delete-warning" style={{ 
-                        display: 'flex', 
+                    <div className="delete-warning" style={{
+                        display: 'flex',
                         alignItems: 'flex-start',
                         backgroundColor: '#fff2f0',
                         padding: '16px',
                         borderRadius: '6px',
                         border: '1px solid #ffccc7'
                     }}>
-                        <ExclamationCircleOutlined 
-                            className="delete-warning-icon" 
-                            style={{ 
-                                color: '#ff4d4f', 
-                                fontSize: '24px', 
+                        <ExclamationCircleOutlined
+                            className="delete-warning-icon"
+                            style={{
+                                color: '#ff4d4f',
+                                fontSize: '24px',
                                 marginRight: '12px',
                                 marginTop: '2px'
-                            }} 
+                            }}
                         />
                         <div style={{ flex: 1 }}>
                             <Paragraph strong style={{ marginBottom: '8px', color: '#cf1322' }}>
-                                Are you sure you want to delete this user?
+                                Bạn có chắc chắn muốn xóa người dùng này?
                             </Paragraph>
                             <Text style={{ display: 'block', marginBottom: '4px' }}>
-                                User: <strong>{record?.firstName} {record?.lastName}</strong>
+                                Người dùng: <strong>{record?.firstName} {record?.lastName}</strong>
+                            </Text>
+                            <Text type="secondary" style={{ display: 'block', marginBottom: '4px' }}>
+                                Email: {record?.email}
                             </Text>
                             <Text type="secondary" style={{ display: 'block' }}>
-                                Email: {record?.email}
+                                ID: {record?.id}
                             </Text>
                         </div>
                     </div>
 
-                    <Paragraph type="danger" style={{ 
-                        marginTop: 16, 
+                    <Paragraph type="danger" style={{
+                        marginTop: 16,
                         padding: '12px',
                         backgroundColor: '#fff1f0',
                         borderLeft: '4px solid #ff4d4f',
                         borderRadius: '4px'
                     }}>
-                        ⚠️ <strong>Warning:</strong> This action cannot be undone. All data associated with this user account will be permanently removed, including:
+                        ⚠️ <strong>Cảnh báo:</strong> Hành động này không thể hoàn tác. Tất cả dữ liệu liên quan đến tài khoản người dùng này sẽ bị xóa vĩnh viễn, bao gồm:
                         <ul style={{ marginTop: '8px', marginBottom: 0, paddingLeft: '20px' }}>
-                            <li>Personal information</li>
-                            <li>Medical appointments</li>
-                            <li>Medical records</li>
-                            <li>Transaction history</li>
+                            <li>🧑‍⚕️ Thông tin cá nhân</li>
+                            <li>📅 Lịch hẹn khám bệnh</li>
+                            <li>📋 Hồ sơ y tế</li>
+                            <li>💰 Lịch sử giao dịch</li>
+                            <li>🔐 Quyền truy cập hệ thống</li>
                         </ul>
                     </Paragraph>
+
+                    {/* ✅ Fixed role display */}
+                    {record?.role && (
+                        <div style={{
+                            marginTop: 12,
+                            padding: '8px 12px',
+                            backgroundColor: '#f0f7ff',
+                            borderRadius: '4px',
+                            border: '1px solid #d6e4ff'
+                        }}>
+                            <Text style={{ fontSize: '13px', color: '#1890ff' }}>
+                                👤 <strong>Vai trò:</strong> {getRoleDisplay(record.role)}
+                            </Text>
+                            {/* ✅ Hiển thị thêm thông tin role nếu cần */}
+                            {typeof record.role === 'object' && record.role.roleType && (
+                                <Text style={{ fontSize: '12px', color: '#666', display: 'block', marginTop: '4px' }}>
+                                    Loại: {record.role.roleType}
+                                </Text>
+                            )}
+                        </div>
+                    )}
                 </div>
 
-                <div style={{ 
-                    marginTop: 24, 
+                <div style={{
+                    marginTop: 24,
                     textAlign: 'right',
                     borderTop: '1px solid #f0f0f0',
                     paddingTop: '16px'
                 }}>
-                    <Button 
-                        onClick={handleCancel} 
+                    <Button
+                        onClick={handleCancel}
                         style={{ marginRight: 8 }}
                         disabled={spinning}
                     >
-                        Cancel
+                        Hủy
                     </Button>
-                    <Button 
-                        danger 
-                        type="primary" 
-                        onClick={handleDelete} 
+                    <Button
+                        danger
+                        type="primary"
+                        onClick={handleDelete}
                         icon={<UserDeleteOutlined />}
                         loading={spinning}
                         disabled={spinning}
                     >
-                        {spinning ? 'Deleting...' : 'Delete User'}
+                        {spinning ? 'Đang xóa...' : 'Xóa Người dùng'}
                     </Button>
                 </div>
             </Spin>

@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, Row, Col, Button, Spin, TimePicker, message } from 'antd';
+import { Modal, Form, Input, Row, Col, Button, Spin, TimePicker, message } from 'antd';
 import { PlusOutlined, MedicineBoxOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { setMessage, clearMessage } from '../../../redux/slices/messageSlice';
 import { createHospital } from '../../../services/hospitalService';
 import dayjs from 'dayjs';
 
-const { Option } = Select;
 const { TextArea } = Input;
 
 const AddHospital = ({ visible, onCancel, onSuccess }) => {
@@ -52,22 +51,19 @@ const AddHospital = ({ visible, onCancel, onSuccess }) => {
             // ✅ Get current date for time formatting
             const currentDate = new Date().toISOString().split('T')[0];
 
-            // ✅ Transform data to match exact API schema
+            // ✅ Transform data to match exact API payload format
             const hospitalData = {
-                code: values.code?.trim() || "",
-                name: values.name?.trim() || "",
-                address: values.address?.trim() || "",
-                image: values.image?.trim() || "",
-                googleMapUri: values.googleMapUri?.trim() || "",
-                banner: values.banner?.trim() || "",
-                type: parseInt(values.type) || 0,
-                phoneNumber: values.phoneNumber?.trim() || "",
-                email: values.email?.trim() || "",
+                Name: values.name?.trim() || "",
+                Address: values.address?.trim() || "",
+                Image: values.image?.trim() || "",
+                GoogleMapUri: values.googleMapUri?.trim() || "",
+                PhoneNumber: values.phoneNumber?.trim() || "",
+                Email: values.email?.trim() || "",
                 // ✅ Convert time to ISO datetime format matching API
-                openTime: values.openTime
+                OpenTime: values.openTime
                     ? `${currentDate}T${values.openTime.format('HH:mm:ss')}.988Z`
                     : `2025-08-16T08:00:00.988Z`,
-                closeTime: values.closeTime
+                CloseTime: values.closeTime
                     ? `${currentDate}T${values.closeTime.format('HH:mm:ss')}.988Z`
                     : `2025-08-16T18:00:00.988Z`
             };
@@ -81,7 +77,7 @@ const AddHospital = ({ visible, onCancel, onSuccess }) => {
             if (response?.success || response?.result || response?.id) {
                 dispatch(setMessage({
                     type: 'success',
-                    content: `🎉 Tạo bệnh viện "${hospitalData.name}" thành công!`
+                    content: `🎉 Tạo bệnh viện "${hospitalData.Name}" thành công!`
                 }));
 
                 form.resetFields();
@@ -108,9 +104,6 @@ const AddHospital = ({ visible, onCancel, onSuccess }) => {
 
                 if (errorData.title) {
                     switch (errorData.title) {
-                        case 'HOSPITAL_CODE_EXISTS':
-                            errorMessage = '🏥 Mã bệnh viện đã tồn tại! Vui lòng sử dụng mã khác.';
-                            break;
                         case 'HOSPITAL_NAME_EXISTS':
                             errorMessage = '🏥 Tên bệnh viện đã tồn tại! Vui lòng sử dụng tên khác.';
                             break;
@@ -119,6 +112,9 @@ const AddHospital = ({ visible, onCancel, onSuccess }) => {
                             break;
                         case 'PHONE_ALREADY_EXISTS':
                             errorMessage = '📱 Số điện thoại này đã được đăng ký! Vui lòng sử dụng số điện thoại khác.';
+                            break;
+                        case 'VALIDATION_ERROR':
+                            errorMessage = '⚠️ Dữ liệu không hợp lệ! Vui lòng kiểm tra lại thông tin đã nhập.';
                             break;
                         default:
                             errorMessage = `❌ ${errorData.title.replace(/_/g, ' ')} - Vui lòng thử lại.`;
@@ -167,7 +163,7 @@ const AddHospital = ({ visible, onCancel, onSuccess }) => {
                 open={visible}
                 onCancel={handleCancel}
                 footer={null}
-                width={800}
+                width={700}
                 destroyOnClose
                 maskClosable={false}
                 style={{ top: 20 }}
@@ -178,7 +174,6 @@ const AddHospital = ({ visible, onCancel, onSuccess }) => {
                         layout="vertical"
                         onFinish={handleSubmit}
                         initialValues={{
-                            type: 0,
                             openTime: dayjs('08:00', 'HH:mm'),
                             closeTime: dayjs('18:00', 'HH:mm')
                         }}
@@ -192,47 +187,24 @@ const AddHospital = ({ visible, onCancel, onSuccess }) => {
                             borderRadius: '8px',
                             border: '1px solid #d6e4ff'
                         }}>
-                            <h4 style={{ color: '#1890ff', marginBottom: 16 }}>🏥 Thông tin bệnh viện</h4>
+                            <h4 style={{ color: '#1890ff', marginBottom: 16 }}>🏥 Thông tin Bệnh viện</h4>
                             
-                            <Row gutter={16}>
-                                <Col xs={24} md={12}>
-                                    <Form.Item
-                                        name="name"
-                                        label="Tên bệnh viện"
-                                        rules={[
-                                            { required: true, message: 'Vui lòng nhập tên bệnh viện' },
-                                            { min: 3, message: 'Tên bệnh viện phải có ít nhất 3 ký tự' },
-                                            { max: 200, message: 'Tên bệnh viện không được vượt quá 200 ký tự' }
-                                        ]}
-                                        hasFeedback
-                                    >
-                                        <Input 
-                                            placeholder="Bệnh viện Đa khoa Thành phố" 
-                                            showCount
-                                            maxLength={200}
-                                        />
-                                    </Form.Item>
-                                </Col>
-
-                                <Col xs={24} md={12}>
-                                    <Form.Item
-                                        name="code"
-                                        label="Mã bệnh viện"
-                                        rules={[
-                                            { required: true, message: 'Vui lòng nhập mã bệnh viện' },
-                                            { min: 2, message: 'Mã bệnh viện phải có ít nhất 2 ký tự' },
-                                            { max: 20, message: 'Mã bệnh viện không được vượt quá 20 ký tự' }
-                                        ]}
-                                        hasFeedback
-                                    >
-                                        <Input 
-                                            placeholder="BV001" 
-                                            showCount
-                                            maxLength={20}
-                                        />
-                                    </Form.Item>
-                                </Col>
-                            </Row>
+                            <Form.Item
+                                name="name"
+                                label="Tên bệnh viện"
+                                rules={[
+                                    { required: true, message: 'Vui lòng nhập tên bệnh viện' },
+                                    { min: 3, message: 'Tên bệnh viện phải có ít nhất 3 ký tự' },
+                                    { max: 200, message: 'Tên bệnh viện không được vượt quá 200 ký tự' }
+                                ]}
+                                hasFeedback
+                            >
+                                <Input 
+                                    placeholder="Bệnh viện Đa khoa Thành phố" 
+                                    showCount
+                                    maxLength={200}
+                                />
+                            </Form.Item>
 
                             <Form.Item
                                 name="address"
@@ -245,30 +217,14 @@ const AddHospital = ({ visible, onCancel, onSuccess }) => {
                                 hasFeedback
                             >
                                 <Input 
-                                    placeholder="123 Đường ABC, Phường XYZ, Quận 1, TP.HCM" 
+                                    placeholder="120 Cầu Giấy, Hà Nội" 
                                     showCount
                                     maxLength={500}
                                 />
                             </Form.Item>
 
                             <Row gutter={16}>
-                                <Col xs={24} md={8}>
-                                    <Form.Item
-                                        name="type"
-                                        label="Loại hình"
-                                        rules={[{ required: true, message: 'Vui lòng chọn loại hình' }]}
-                                        hasFeedback
-                                    >
-                                        <Select placeholder="Chọn loại hình">
-                                            <Option value={0}>🏥 Bệnh viện Tổng hợp</Option>
-                                            <Option value={1}>🩺 Bệnh viện Chuyên khoa</Option>
-                                            <Option value={2}>🏘️ Bệnh viện Cộng đồng</Option>
-                                            <Option value={3}>🏢 Bệnh viện Tư nhân</Option>
-                                        </Select>
-                                    </Form.Item>
-                                </Col>
-
-                                <Col xs={24} md={8}>
+                                <Col xs={24} md={12}>
                                     <Form.Item
                                         name="phoneNumber"
                                         label="Số điện thoại"
@@ -279,11 +235,11 @@ const AddHospital = ({ visible, onCancel, onSuccess }) => {
                                         ]}
                                         hasFeedback
                                     >
-                                        <Input placeholder="0123-456-789" />
+                                        <Input placeholder="0826259603" />
                                     </Form.Item>
                                 </Col>
 
-                                <Col xs={24} md={8}>
+                                <Col xs={24} md={12}>
                                     <Form.Item
                                         name="email"
                                         label="Email"
@@ -294,7 +250,7 @@ const AddHospital = ({ visible, onCancel, onSuccess }) => {
                                         ]}
                                         hasFeedback
                                     >
-                                        <Input placeholder="lienhe@benhvien.com" />
+                                        <Input placeholder="benhvien@example.com" />
                                     </Form.Item>
                                 </Col>
                             </Row>
@@ -364,33 +320,20 @@ const AddHospital = ({ visible, onCancel, onSuccess }) => {
                             borderRadius: '8px',
                             border: '1px solid #ffd591'
                         }}>
-                            <h4 style={{ color: '#faad14', marginBottom: 16 }}>🖼️ Hình ảnh (Tùy chọn)</h4>
+                            <h4 style={{ color: '#faad14', marginBottom: 16 }}>🖼️ Hình ảnh và Bản đồ (Tùy chọn)</h4>
 
-                            <Row gutter={16}>
-                                <Col xs={24} md={12}>
-                                    <Form.Item
-                                        name="image"
-                                        label="URL Logo/Hình ảnh"
-                                        rules={[
-                                            { type: 'url', message: 'Vui lòng nhập URL hợp lệ' }
-                                        ]}
-                                    >
-                                        <Input placeholder="https://example.com/logo.png" />
-                                    </Form.Item>
-                                </Col>
-
-                                <Col xs={24} md={12}>
-                                    <Form.Item
-                                        name="banner"
-                                        label="URL Banner"
-                                        rules={[
-                                            { type: 'url', message: 'Vui lòng nhập URL hợp lệ' }
-                                        ]}
-                                    >
-                                        <Input placeholder="https://example.com/banner.png" />
-                                    </Form.Item>
-                                </Col>
-                            </Row>
+                            <Form.Item
+                                name="image"
+                                label="URL Logo/Hình ảnh bệnh viện"
+                                rules={[
+                                    { type: 'url', message: 'Vui lòng nhập URL hợp lệ' }
+                                ]}
+                            >
+                                <Input 
+                                    placeholder="https://example.com/logo-benh-vien.png" 
+                                    allowClear
+                                />
+                            </Form.Item>
 
                             <Form.Item
                                 name="googleMapUri"
@@ -400,8 +343,8 @@ const AddHospital = ({ visible, onCancel, onSuccess }) => {
                                 ]}
                             >
                                 <TextArea
-                                    rows={2}
-                                    placeholder="https://www.google.com/maps/embed?pb=..."
+                                    rows={3}
+                                    placeholder="https://www.google.com/maps/embed?pb=1m18!1m12!1m3!1d3724..."
                                     showCount
                                     maxLength={1000}
                                 />
@@ -418,11 +361,12 @@ const AddHospital = ({ visible, onCancel, onSuccess }) => {
                             fontSize: '13px'
                         }}>
                             <div style={{ color: '#389e0d', fontWeight: 500, marginBottom: 4 }}>
-                                💡 Lưu ý:
+                                💡 Lưu ý quan trọng:
                             </div>
                             <div style={{ color: '#666', lineHeight: '1.4' }}>
-                                • <strong>Mã bệnh viện</strong> và <strong>Email</strong> phải là duy nhất<br />
-                                • <strong>Hình ảnh</strong> có thể bổ sung sau khi tạo bệnh viện
+                                • <strong>Tên bệnh viện</strong> và <strong>Email</strong> phải là duy nhất trong hệ thống<br />
+                                • <strong>Số điện thoại</strong> phải là số hợp lệ và chưa được sử dụng<br />
+                                • <strong>Hình ảnh và Google Maps</strong> có thể bổ sung sau khi tạo bệnh viện
                             </div>
                         </div>
 

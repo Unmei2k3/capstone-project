@@ -715,12 +715,12 @@ const EditUser = ({ visible, record, onCancel, onSuccess }) => {
                             </Row>
 
                             {/* ✅ Enhanced debugging info */}
-                            <div style={{ marginTop: 12, padding: 8, background: '#f0f0f0', borderRadius: 4, fontSize: '12px' }}>
+                            {/* <div style={{ marginTop: 12, padding: 8, background: '#f0f0f0', borderRadius: 4, fontSize: '12px' }}>
                                 <strong>🔍 Thông tin debug:</strong><br />
                                 User ID: {record?.id} | Current Role: {currentUserRole?.name} ({currentUserRole?.roleType})<br />
                                 Original API Role: {userDetails?.role?.name} (Type: {userDetails?.role?.roleType})<br />
                                 Provinces: {provinces.length} | Wards: {wards.length} | Is Patient: {isPatientRole ? 'Yes' : 'No'}
-                            </div>
+                            </div> */}
                         </div>
 
                         {/* Updated notes */}

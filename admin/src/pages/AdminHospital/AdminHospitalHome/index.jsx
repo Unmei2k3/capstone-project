@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   Row,
@@ -14,41 +14,50 @@ import {
   TeamOutlined,
   CalendarOutlined,
   NotificationOutlined,
+  RiseOutlined,
 } from "@ant-design/icons";
+import { getHospitalParameter } from "../../../services/statisticService";
+
 
 const AdminHospitalHome = () => {
   const { Title, Text } = Typography;
 
-  const statsData = [
+  const [statsData, setStatsData] = useState([
     {
       title: "Tổng bác sĩ",
-      value: 45,
+      value: 0,
       icon: <UserOutlined />,
       color: "#e6f7ff",
       borderColor: "#91d5ff",
     },
     {
       title: "Nhân viên y tế",
-      value: 120,
+      value: 0,
       icon: <TeamOutlined />,
       color: "#f6ffed",
       borderColor: "#b7eb8f",
     },
     {
-      title: "Ca khám hôm nay",
-      value: 78,
+      title: "Tổng ca khám đã xử lý",
+      value: 0,
       icon: <CalendarOutlined />,
       color: "#fffbe6",
       borderColor: "#ffe58f",
     },
     {
-      title: "Bệnh nhân đang điều trị",
-      value: 150,
-      icon: <UserOutlined />,
-      color: "#fff0f6",
-      borderColor: "#ffadd2",
-    },
-  ];
+      title: "Hiệu suất làm việc của nhân viên",
+      value: 0,
+      icon: <RiseOutlined style={{ color: "#1890ff" }} />,
+      color: "#e6f7ff",
+      borderColor: "#1890ff",
+    }
+
+  ]);
+
+  const [performance, setPerformance] = useState({
+    clinicPerformance: 0,
+    successfulAppointmentRate: 0,
+  });
 
   const notifications = [
     {
@@ -68,6 +77,42 @@ const AdminHospitalHome = () => {
     },
   ];
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const result = await getHospitalParameter();
+        console.log("total appoint : ", JSON.stringify(result));
+        setStatsData((prevStats) =>
+          prevStats.map((stat) => {
+            if (stat.title === "Tổng bác sĩ") {
+              return { ...stat, value: result.totalDoctor || 0 };
+            } else if (stat.title === "Nhân viên y tế") {
+              return { ...stat, value: result.totalStaff || 0 };
+            } else if (stat.title === "Tổng ca khám đã xử lý") {
+              return {
+                ...stat,
+                value: result.totalAppoint
+                  ? `${result.totalSuccessAppoint}/${result.totalAppoint} (${(result.totalSuccessAppoint / result.totalAppoint * 100).toFixed(1)}%)`
+                  : "0/0 (0%)"
+              };
+            } else {
+              return { ...stat, value: result.clinicPerformance || 0 };
+            }
+          })
+        );
+
+        setPerformance({
+          clinicPerformance: result.clinicPerformance || 0,
+          successfulAppointmentRate: Math.round(result.successfulAppointmentRate) || 0,
+        });
+      } catch (error) {
+        console.error("Failed to fetch hospital parameters:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   return (
     <div
       style={{
@@ -78,7 +123,7 @@ const AdminHospitalHome = () => {
       }}
     >
       <Title level={2} style={{ color: "#1890ff" }}>
-        Chào Admin Nguyễn Văn B
+        Chào Quản lý bệnh viện 
       </Title>
 
       <Row gutter={24}>
@@ -95,6 +140,11 @@ const AdminHospitalHome = () => {
                 title={stat.title}
                 value={stat.value}
                 prefix={stat.icon}
+                formatter={
+                  stat.title === "Hiệu suất làm việc của nhân viên"
+                    ? (value) => `${value}%`
+                    : undefined
+                }
                 valueStyle={{ fontWeight: "bold" }}
               />
             </Card>
@@ -159,19 +209,20 @@ const AdminHospitalHome = () => {
 
         <Col span={8}>
           <Card
-            title="Hiệu suất làm việc"
+            title="Hiệu suất"
             style={{
               textAlign: "center",
               borderRadius: 12,
               boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
             }}
           >
-            <Text strong>Hiệu suất sử dụng phòng khám</Text>
-            <Progress percent={75} status="active" />
+
+          
             <Text strong style={{ marginTop: 16, display: "block" }}>
               Tỷ lệ đặt lịch thành công
             </Text>
-            <Progress percent={85} status="success" />
+            <Progress percent={performance.successfulAppointmentRate} status="active" />
+
           </Card>
         </Col>
       </Row>

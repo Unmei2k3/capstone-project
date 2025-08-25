@@ -15,12 +15,13 @@ import {
     Select,
     Modal,
     Descriptions,
+    DatePicker,
 } from "antd";
 import { SearchOutlined, EyeOutlined, CalendarOutlined } from "@ant-design/icons";
 import viVN from "antd/es/locale/vi_VN";
 import { useSelector, useDispatch } from "react-redux";
 import { getAppointmentsByUserId, changeAppointmentStatus } from "../../../services/appointmentService";
-import { getAllPatients } from "../../../services/userService";
+import { getPatientByHospitalId } from "../../../services/userService";
 import dayjs from "dayjs";
 import { clearMessage, setMessage } from "../../../redux/slices/messageSlice";
 const now = dayjs();
@@ -62,6 +63,8 @@ const PatientAppointmentList = () => {
     const [selectedAppointment, setSelectedAppointment] = useState(null);
 
     const [confirmCancelModalVisible, setConfirmCancelModalVisible] = useState(false);
+    const [startDate, setStartDate] = useState(null);
+    const [endDate, setEndDate] = useState(null);
 
     useEffect(() => {
         if (messageState) {
@@ -76,7 +79,8 @@ const PatientAppointmentList = () => {
     useEffect(() => {
         (async () => {
             try {
-                const data = await getAllPatients();
+                const data = await getPatientByHospitalId(user?.hospitals?.[0]?.id);
+                console.log("patient in hospital is : " + JSON.stringify(data));
                 setPatients(data || []);
             } catch (error) {
                 console.error("Lỗi khi lấy danh sách bệnh nhân", error);
@@ -85,24 +89,23 @@ const PatientAppointmentList = () => {
         })();
     }, []);
 
-    const formatDateTime = (dateStr) => {
-        if (!dateStr) return "";
-        const date = new Date(dateStr);
-        return date.toLocaleString("vi-VN", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-            timeZone: "Asia/Ho_Chi_Minh",
-        });
+    const formatHourMinute = (timeStr) => {
+        if (!timeStr) return "";
+        const d = dayjs(timeStr, "HH:mm:ss", true);
+        if (!d.isValid()) return "Invalid time";
+        return d.format("HH:mm");
     };
 
-    const fetchAppointments = async (patientId) => {
+    const formatDate = (dateStr) => {
+        if (!dateStr) return "";
+        return dayjs(dateStr).format("DD/MM/YYYY");
+    };
+    const fetchAppointments = async (patientId, from, to) => {
         setLoading(true);
         try {
-            const appointments = await getAppointmentsByUserId(patientId);
+            const fromDate = from ? dayjs(from).startOf("day").format("YYYY-MM-DD") : null;
+            const toDate = to ? dayjs(to).endOf("day").format("YYYY-MM-DD") : null;
+            const appointments = await getAppointmentsByUserId(patientId, from, to);
 
             const formatted = (appointments || []).map((item) => {
 
@@ -116,23 +119,23 @@ const PatientAppointmentList = () => {
                 }
 
                 const workDate = item.doctorSchedule?.workDate?.split("T")[0] || "";
-                const startTimeStr = `${workDate}T${item.doctorSchedule?.startTime}`;
-                const endTimeStr = `${workDate}T${item.doctorSchedule?.endTime || ""}`;
+                // const startTimeStr = `${item.doctorSchedule?.startTime}`;
+                // const endTimeStr = `${item.doctorSchedule?.endTime || ""}`;
 
                 return {
                     id: String(item.id),
                     patientName: patients.find((p) => p.id === item.patientId)?.fullname || "",
                     phoneNumber: item.patient?.phoneNumber || "",
-                    doctorName: item.doctorSchedule?.doctorProfile?.description || "Không rõ",
+                    doctorName: item.doctorSchedule?.doctorProfile?.user?.fullname || "Không rõ",
                     specializationName: item.doctorSchedule?.specialization?.name || "",
-                    appointmentTime: formatDateTime(item.appointmentTime),
-                    workDate,
-                    startTime: formatDateTime(startTimeStr),
-                    endTime: dayjs(endTimeStr).format("HH:mm"),
+                    appointmentTime: formatDate(item.appointmentTime),
+                    workDate: formatDate(workDate),
+                    startTime: formatHourMinute(item.doctorSchedule?.startTime),
+                    endTime: formatHourMinute(item.doctorSchedule?.endTime),
                     status,
                     note: item.note || "",
                     roomName: item.doctorSchedule?.room?.name || "",
-                    serviceName: item.serviceName || item.service?.name || "",
+                    serviceName: item.serviceName || "",
                     rawData: item,
                 };
             });
@@ -150,8 +153,8 @@ const PatientAppointmentList = () => {
             setAppointmentList([]);
             return;
         }
-        fetchAppointments(selectedPatientId);
-    }, [selectedPatientId, patients]);
+        fetchAppointments(selectedPatientId, startDate, endDate);
+    }, [selectedPatientId, startDate, endDate, patients]);
 
     const statusCounts = useMemo(() => {
         const counts = { all: 0 };
@@ -163,7 +166,7 @@ const PatientAppointmentList = () => {
         });
         return counts;
     }, [appointmentList]);
-
+    const filteredCount = appointmentList.length;
     const filteredAppointments = useMemo(() => {
         const lowerSearch = searchText.toLowerCase();
         return appointmentList.filter((item) => {
@@ -255,7 +258,7 @@ const PatientAppointmentList = () => {
         {
             title: "Thời gian khám",
             key: "appointmentTime",
-            render: (_, record) => `${record.startTime} - ${record.endTime}`,
+            render: (_, record) => `${record.workDate} - ${record.startTime}`,
         },
         { title: "Phòng", dataIndex: "roomName", key: "roomName" },
         {
@@ -288,18 +291,12 @@ const PatientAppointmentList = () => {
         <>
             {contextHolder}
             <ConfigProvider locale={viVN}>
-                <div>
-                    <Row gutter={[16, 24]} style={{ marginBottom: 16 }}>
-                        <Col span={24}>
-                            <Row justify="space-between" align="middle">
-                                <Col>
-                                    <Title level={3}>
-                                        <CalendarOutlined style={{ marginRight: 8, color: "#1890ff" }} />
-                                        Lịch hẹn của bệnh nhân
-                                    </Title>
-                                </Col>
-                            </Row>
-                        </Col>
+                <>
+                    <Title level={3} style={{ marginBottom: 16 }}>
+                        <CalendarOutlined style={{ marginRight: 8, color: "#1890ff" }} />
+                        Danh sách lịch hẹn của bệnh nhân
+                    </Title>
+                    <Row gutter={[16, 24]} style={{ marginBottom: 16, marginTop: 50 }}>
                         <Col xs={24} sm={12} md={8} lg={6}>
                             <Select
                                 showSearch
@@ -319,21 +316,38 @@ const PatientAppointmentList = () => {
                                     </Option>
                                 ))}
                             </Select>
+
                         </Col>
 
-                        {/* <Col xs={24} sm={12} md={8} lg={6}>
-                            <Input
-                                placeholder="Tìm kiếm..."
-                                prefix={<SearchOutlined />}
+                        <Col xs={24} sm={12} md={8} lg={6}>
+                            <DatePicker
+                                placeholder="Ngày bắt đầu"
+                                value={startDate ? dayjs(startDate) : null}
+                                onChange={(date) => setStartDate(date ? date.format("YYYY-MM-DD") : null)}
+                                style={{ width: "100%" }}
+                                format="DD/MM/YYYY"
                                 allowClear
-                                value={searchText}
-                                onChange={(e) => setSearchText(e.target.value)}
                             />
-                        </Col> */}
+                        </Col>
+
+                        <Col xs={24} sm={12} md={8} lg={6}>
+                            <DatePicker
+                                placeholder="Ngày kết thúc"
+                                value={endDate ? dayjs(endDate) : null}
+                                onChange={(date) => setEndDate(date ? date.format("YYYY-MM-DD") : null)}
+                                style={{ width: "100%" }}
+                                format="DD/MM/YYYY"
+                                allowClear
+                                disabled={startDate == null}
+                                disabledDate={(date) =>
+                                    startDate ? date.isBefore(dayjs(startDate), "day") : false
+                                }
+                            />
+                        </Col>
                     </Row>
 
                     <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: 16 }}>
-                        <TabPane key="all" tab={<span>Tất cả <Badge count={statusCounts.all} /></span>} />
+                        <TabPane key="all" tab={<span>Tất cả <Badge count={filteredCount} /></span>} />
                         {Object.entries(statusMap).map(([key, val]) => (
                             <TabPane
                                 key={key}
@@ -402,8 +416,10 @@ const PatientAppointmentList = () => {
                             <Descriptions bordered column={1} size="small">
                                 <Descriptions.Item label="Mã lịch hẹn">{selectedAppointment.id}</Descriptions.Item>
                                 <Descriptions.Item label="Dịch vụ">{selectedAppointment.serviceName}</Descriptions.Item>
-                                <Descriptions.Item label="Thời gian hẹn">{formatDateTime(selectedAppointment.appointmentTime)}</Descriptions.Item>
-                                <Descriptions.Item label="Bác sĩ">{selectedAppointment.doctorProfile?.description || selectedAppointment.doctorName || "Không rõ"}</Descriptions.Item>
+                                <Descriptions.Item label="Thời gian hẹn">
+                                    {selectedAppointment.appointmentTime} - {selectedAppointment.startTime}
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Bác sĩ">{selectedAppointment.doctorName || "Không rõ"}</Descriptions.Item>
                                 <Descriptions.Item label="Chuyên khoa">{selectedAppointment.doctorSchedule?.specialization?.name || selectedAppointment.specializationName || "Không rõ"}</Descriptions.Item>
                                 <Descriptions.Item label="Phòng">{selectedAppointment.doctorSchedule?.room?.name || selectedAppointment.roomName || "Không rõ"}</Descriptions.Item>
                                 <Descriptions.Item label="Trạng thái">{statusMap[selectedAppointment.status]?.text || "Không rõ"}</Descriptions.Item>
@@ -426,7 +442,7 @@ const PatientAppointmentList = () => {
                     >
                         <p>Bạn có chắc chắn muốn hủy lịch hẹn này không? Thao tác này không thể hoàn tác.</p>
                     </Modal>
-                </div>
+                </>
             </ConfigProvider>
         </>
     );

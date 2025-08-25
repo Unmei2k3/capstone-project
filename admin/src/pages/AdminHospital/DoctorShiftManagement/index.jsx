@@ -1002,14 +1002,14 @@ const AdminDoctorShiftManagement = () => {
                       </Form.Item>
                     )}
                   </Col>
-
+{/* disabled={editingShift} */}
                   <Col span={12}>
                     <Form.Item
                       name="workDate"
                       label="Ngày làm việc"
                       rules={[{ required: true, message: "Vui lòng chọn ngày làm việc" }]}
-                    >
-                      <DatePicker format="YYYY-MM-DD" style={{ width: "100%", borderRadius: 8 }} />
+                 >
+                      <DatePicker format="YYYY-MM-DD" style={{ width: "100%", borderRadius: 8 }}/>
                     </Form.Item>
                   </Col>
                   <Col span={12}>

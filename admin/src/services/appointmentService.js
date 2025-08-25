@@ -362,7 +362,7 @@ export const getDepartments = async () => {
     }
 };
 
-export const getAppointmentsByUserId = async (userId, from = null, to = null) => {
+export const getAppointmentsByUserId = async (userId, from, to) => {
   try {
     let url = `/user/${userId}/appointments`;
     if (from && to) {
